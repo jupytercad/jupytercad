@@ -13,6 +13,7 @@ import {
   disposeBoundsTree
 } from 'three-mesh-bvh';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { v4 as uuid } from 'uuid';
 
 import {
@@ -230,7 +231,7 @@ export class MainView extends React.Component<IProps, IStates> {
       DEFAULT_EDGE_COLOR.set(getCSSVariableColor(DEFAULT_EDGE_COLOR_CSS));
       SELECTED_MESH_COLOR.set(getCSSVariableColor(SELECTED_MESH_COLOR_CSS));
 
-      this._camera = new THREE.PerspectiveCamera(90, 2, 0.1, 1000);
+      this._camera = new THREE.PerspectiveCamera(45, 2, 0.1, 1000);
       this._camera.position.set(8, 8, 8);
       this._camera.up.set(0, 0, 1);
 
@@ -317,6 +318,23 @@ export class MainView extends React.Component<IProps, IStates> {
           );
         }, 100)
       );
+
+      this._transformControls = new TransformControls(
+        this._camera,
+        this._renderer.domElement
+      );
+      this._transformControls.addEventListener('dragging-changed', event => {
+        this._transforming = event.value;
+        this._controls.enabled = !event.value;
+
+        if (this._transforming && this._pointer3D) {
+          this._pointer3D.mesh.visible = false;
+        }
+      });
+      this._scene.add(this._transformControls);
+      this._transformControls.addEventListener('objectChange', function () {
+        console.log('object changed!');
+      });
     }
   };
 
@@ -456,6 +474,13 @@ export class MainView extends React.Component<IProps, IStates> {
   }
 
   private _onPointerMove(e: MouseEvent) {
+    if (this._transforming) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
     const rect = this._renderer.domElement.getBoundingClientRect();
 
     this._pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -503,6 +528,13 @@ export class MainView extends React.Component<IProps, IStates> {
   }
 
   private _onClick(e: MouseEvent) {
+    if (this._transforming) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
     const selection = this._pick();
     const selectedMeshesNames = new Set(
       this._selectedMeshes.map(sel => sel.name)
@@ -546,6 +578,7 @@ export class MainView extends React.Component<IProps, IStates> {
     });
   };
   private _shapeToMesh = (payload: IDisplayShape['payload']) => {
+    console.log('shapetomesh!');
     if (this._meshGroup !== null) {
       this._scene.remove(this._meshGroup);
     }
@@ -626,6 +659,12 @@ export class MainView extends React.Component<IProps, IStates> {
         new THREE.Float32BufferAttribute(normals, 3)
       );
       geometry.computeBoundingBox();
+
+      // Get the old center of the object and center its vertices to the scene
+      const center = new THREE.Vector3();
+      geometry.boundingBox?.getCenter(center);
+      geometry.center();
+
       if (vertices.length > 0) {
         geometry.computeBoundsTree();
       }
@@ -633,6 +672,7 @@ export class MainView extends React.Component<IProps, IStates> {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = objName;
       mesh.visible = visible;
+      mesh.position.copy(center);
 
       if (visible) {
         this._boundingGroup.expandByObject(mesh);
@@ -654,8 +694,19 @@ export class MainView extends React.Component<IProps, IStates> {
         );
         const edgeGeometry = new THREE.BufferGeometry();
         edgeGeometry.setAttribute('position', edgeVertices);
+        const edgeCenter = new THREE.Vector3();
+        edgeGeometry.computeBoundingBox();
+        edgeGeometry.boundingBox?.getCenter(edgeCenter);
+        edgeGeometry.center();
+
+        const edgePosition = new THREE.Vector3();
+        edgePosition.copy(center);
+        edgePosition.multiplyScalar(-1);
+        edgePosition.add(edgeCenter);
+
         const edgesMesh = new THREE.Line(edgeGeometry, edgeMaterial);
         edgesMesh.name = 'edge';
+        edgesMesh.position.copy(edgePosition);
 
         mesh.add(edgesMesh);
       });
@@ -746,6 +797,8 @@ export class MainView extends React.Component<IProps, IStates> {
   }
 
   private _updateSelected(names: string[]) {
+    this._transformControls.detach();
+
     // Reset original color for old selection
     for (const selectedMesh of this._selectedMeshes) {
       let originalColor = DEFAULT_MESH_COLOR;
@@ -774,6 +827,10 @@ export class MainView extends React.Component<IProps, IStates> {
 
       this._selectedMeshes.push(selected);
       selected.material.color = SELECTED_MESH_COLOR;
+    }
+
+    if (this._selectedMeshes.length === 1) {
+      this._transformControls.attach(this._selectedMeshes[0]);
     }
   }
 
@@ -1006,43 +1063,37 @@ export class MainView extends React.Component<IProps, IStates> {
   }
 
   private _setupExplodedView() {
-    if (this._explodedView.enabled) {
-      const center = new THREE.Vector3();
-      this._boundingGroup.getCenter(center);
-
-      this._explodedViewLinesHelperGroup?.removeFromParent();
-      this._explodedViewLinesHelperGroup = new THREE.Group();
-
-      for (const mesh of this._meshGroup?.children as BasicMesh[]) {
-        const explodedState = this._computeExplodedState(mesh);
-
-        mesh.position.set(0, 0, 0);
-        mesh.translateOnAxis(explodedState.vector, explodedState.distance);
-
-        // Draw lines
-        const material = new THREE.LineBasicMaterial({
-          color: DEFAULT_EDGE_COLOR,
-          linewidth: 2
-        });
-        const geometry = new THREE.BufferGeometry().setFromPoints([
-          explodedState.oldGeometryCenter,
-          explodedState.newGeometryCenter
-        ]);
-        const line = new THREE.Line(geometry, material);
-        line.name = mesh.name;
-        line.visible = mesh.visible;
-
-        this._explodedViewLinesHelperGroup.add(line);
-      }
-
-      this._scene.add(this._explodedViewLinesHelperGroup);
-    } else {
-      // Exploded view is disabled, we reset the initial positions
-      for (const mesh of this._meshGroup?.children as BasicMesh[]) {
-        mesh.position.set(0, 0, 0);
-      }
-      this._explodedViewLinesHelperGroup?.removeFromParent();
-    }
+    // if (this._explodedView.enabled) {
+    //   const center = new THREE.Vector3();
+    //   this._boundingGroup.getCenter(center);
+    //   this._explodedViewLinesHelperGroup?.removeFromParent();
+    //   this._explodedViewLinesHelperGroup = new THREE.Group();
+    //   for (const mesh of this._meshGroup?.children as BasicMesh[]) {
+    //     const explodedState = this._computeExplodedState(mesh);
+    //     mesh.position.set(0, 0, 0);
+    //     mesh.translateOnAxis(explodedState.vector, explodedState.distance);
+    // // Draw lines
+    // const material = new THREE.LineBasicMaterial({
+    //   color: DEFAULT_EDGE_COLOR,
+    //   linewidth: 2
+    // });
+    // const geometry = new THREE.BufferGeometry().setFromPoints([
+    //   explodedState.oldGeometryCenter,
+    //   explodedState.newGeometryCenter
+    // ]);
+    // const line = new THREE.Line(geometry, material);
+    // line.name = mesh.name;
+    // line.visible = mesh.visible;
+    //     this._explodedViewLinesHelperGroup.add(line);
+    //   }
+    //   this._scene.add(this._explodedViewLinesHelperGroup);
+    // } else {
+    //   // Exploded view is disabled, we reset the initial positions
+    //   for (const mesh of this._meshGroup?.children as BasicMesh[]) {
+    //     mesh.position.set(0, 0, 0);
+    //   }
+    //   this._explodedViewLinesHelperGroup?.removeFromParent();
+    // }
   }
 
   private _updateCamera() {
@@ -1237,7 +1288,9 @@ export class MainView extends React.Component<IProps, IStates> {
   private _geometry: THREE.BufferGeometry; // Threejs BufferGeometry
   private _refLength: number | null = null; // Length of bounding box of current object
   private _sceneAxe: THREE.Object3D | null; // Array of  X, Y and Z axe
-  private _controls: OrbitControls; // Threejs control
+  private _controls: OrbitControls; // Threejs orbit control
+  private _transformControls: TransformControls; // Threejs transform control
+  private _transforming = false;
   private _pointer3D: IPointer | null = null;
   private _collaboratorPointers: IDict<IPointer>;
   private _pointerGeometry: THREE.SphereGeometry;
