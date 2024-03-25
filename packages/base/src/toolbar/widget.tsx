@@ -132,6 +132,15 @@ export class ToolbarWidget extends Toolbar {
         })
       );
 
+      this.addItem(
+        'Chamfer',
+        new CommandToolbarButton({
+          id: CommandIDs.chamfer,
+          label: '',
+          commands: options.commands
+        })
+      );
+
       this.addItem('separator3', new Separator());
 
       this.addItem(

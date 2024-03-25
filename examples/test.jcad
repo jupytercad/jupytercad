@@ -1,29 +1,8 @@
 {
   "objects": [
     {
-      "name": "box",
-      "shape": "Part::Box",
-      "parameters": {
-        "Height": 19,
-        "Placement": {
-          "Axis": [
-            1,
-            0,
-            0
-          ],
-          "Position": [
-            0,
-            0,
-            0
-          ],
-          "Angle": 0
-        },
-        "Length": 7,
-        "Width": 15
-      },
-      "visible": true,
       "shapeMetadata": {
-        "mass": 1995,
+        "mass": 1995.0,
         "centerOfMass": [
           3.5,
           7.5,
@@ -31,47 +10,71 @@
         ],
         "matrixOfInertia": [
           [
-            0,
+            0.0,
             -2.9103830456733704e-11,
             45552.5
           ],
           [
             97422.50000000006,
-            0,
-            0
+            0.0,
+            0.0
           ],
           [
-            0,
+            0.0,
             68162.50000000006,
             -2.9103830456733704e-11
           ]
         ]
-      }
-    },
-    {
+      },
+      "name": "box",
       "visible": true,
       "parameters": {
-        "Height": 9,
+        "Height": 19.0,
+        "Width": 15.0,
         "Placement": {
           "Axis": [
-            1,
-            0,
-            0
+            1.0,
+            0.0,
+            0.0
           ],
           "Position": [
-            0,
-            0,
-            0
+            0.0,
+            0.0,
+            0.0
           ],
-          "Angle": 2
+          "Angle": 0.0
         },
-        "Width": 25,
-        "Length": 10
+        "Length": 7.0
       },
-      "name": "box2",
+      "shape": "Part::Box"
+    },
+    {
+      "parameters": {
+        "Length": 10.0,
+        "Height": 9.0,
+        "Width": 25.0,
+        "Placement": {
+          "Axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "Angle": 2.0,
+          "Position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
       "shape": "Part::Box",
       "shapeMetadata": {
-        "mass": 2250,
+        "mass": 2250.0,
+        "centerOfMass": [
+          5.0,
+          12.335337602577443,
+          4.933502430367193
+        ],
         "matrixOfInertia": [
           [
             7.275957614183426e-12,
@@ -80,24 +83,80 @@
           ],
           [
             132374.99999999994,
-            0,
+            0.0,
             7.275957614183426e-12
           ],
           [
-            0,
+            0.0,
             34061.73343674897,
             -3557.5801609503396
           ]
+        ]
+      },
+      "name": "box2",
+      "visible": true
+    },
+    {
+      "name": "Intersection 1",
+      "shape": "Part::MultiCommon",
+      "visible": true,
+      "parameters": {
+        "Refine": false,
+        "Shapes": [
+          "box",
+          "box2"
         ],
+        "Placement": {
+          "Axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "Angle": 0.0,
+          "Position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "shapeMetadata": {
+        "mass": 945.5760193623867,
         "centerOfMass": [
-          5,
-          12.335337602577443,
-          4.933502430367193
+          3.4999999999999996,
+          7.500000000000001,
+          4.764648720532806
+        ],
+        "matrixOfInertia": [
+          [
+            -3.637978807091713e-12,
+            -619.1295414202177,
+            21590.65244210783
+          ],
+          [
+            24141.59234654285,
+            3.637978807091713e-12,
+            -3.637978807091713e-12
+          ],
+          [
+            3.637978807091713e-12,
+            10273.144062561194,
+            -619.1295414202177
+          ]
         ]
       }
     }
   ],
-  "options": {},
+  "options": {
+    "guidata": {
+      "box": {
+        "visibility": false
+      },
+      "box2": {
+        "visibility": false
+      }
+    }
+  },
   "metadata": {},
   "outputs": {}
 }

@@ -23,7 +23,8 @@ const resolve = {
   fallback: {
     fs: false,
     child_process: false,
-    crypto: false
+    crypto: false,
+    path: false
   },
   extensions: ['.ts', '.js']
 };

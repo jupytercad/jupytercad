@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "description": "Placement of the box",
+  "description": "Placement of the object",
   "additionalProperties": false,
   "required": ["Position", "Axis", "Angle"],
   "properties": {

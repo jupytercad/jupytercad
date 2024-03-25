@@ -628,10 +628,12 @@ export class MainView extends React.Component<IProps, IStates> {
     );
 
     if (selection) {
-      // TODO Support selecting edges?
       let selectionName = selection.mesh.name;
-      if (selectionName.startsWith('edge') || selectionName === '') {
+      if (selectionName === '') {
         selectionName = (selection.mesh.parent as BasicMesh).name;
+      }
+      if (selectionName.startsWith('edge')) {
+        console.log('selected edge', selectionName);
       }
       if (e.ctrlKey) {
         if (selectedMeshesNames.has(selectionName)) {
@@ -810,12 +812,14 @@ export class MainView extends React.Component<IProps, IStates> {
         mainMesh.material.color = SELECTED_MESH_COLOR;
       }
 
-      const edgeMaterial = new THREE.LineBasicMaterial({
-        linewidth: 5,
-        color: DEFAULT_EDGE_COLOR,
-        clippingPlanes: this._clippingPlanes
-      });
+      let edgeIdx = 0;
+      console.log('going through shapetomesh again');
       edgeList.forEach(edge => {
+        const edgeMaterial = new THREE.LineBasicMaterial({
+          linewidth: 5,
+          color: DEFAULT_EDGE_COLOR,
+          clippingPlanes: this._clippingPlanes
+        });
         const edgeVertices = new THREE.Float32BufferAttribute(
           edge.vertexCoord,
           3
@@ -823,9 +827,9 @@ export class MainView extends React.Component<IProps, IStates> {
         const edgeGeometry = new THREE.BufferGeometry();
         edgeGeometry.setAttribute('position', edgeVertices);
         const edgesMesh = new THREE.Line(edgeGeometry, edgeMaterial);
-        edgesMesh.name = 'edge';
+        edgesMesh.name = `edge-${edgeIdx++}`;
 
-        mainMesh.add(edgesMesh);
+        meshGroup.add(edgesMesh);
       });
       meshGroup.add(mainMesh);
 
@@ -1005,16 +1009,24 @@ export class MainView extends React.Component<IProps, IStates> {
     // Set new selection
     this._selectedMeshes = [];
     for (const name of names) {
-      const selected = this._meshGroup
+      const selected = name.startsWith('edge') ? this._meshGroup
+      ?.getObjectByName(name) as BasicMesh | undefined : this._meshGroup
         ?.getObjectByName(name)
         ?.getObjectByName('main') as BasicMesh | undefined;
       if (!selected) {
         continue;
       }
 
+      console.log('Processing selection for ', name, selected);
+
       this._selectedMeshes.push(selected);
       if (selected?.material?.color) {
         selected.material.color = SELECTED_MESH_COLOR;
+      }
+      // @ts-ignore
+      if (selected?.material?.lineWidth) {
+        // @ts-ignore
+        selected.material.lineWidth = 15;
       }
     }
   }

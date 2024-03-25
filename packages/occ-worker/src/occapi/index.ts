@@ -1,6 +1,7 @@
 import {
   IAny,
   IBox,
+  IChamfer,
   ICone,
   ICut,
   ICylinder,
@@ -20,6 +21,7 @@ import { _Cut } from './cut';
 import { _Cylinder } from './cylinder';
 import { _Extrude } from './extrude';
 import { _Fuse } from './fuse';
+import { _Chamfer } from './chamfer';
 import { _Intersection } from './intersection';
 import { _loadObjectFile } from './loadObjectFile';
 import { operatorCache } from './operatorCache';
@@ -55,6 +57,8 @@ export const Intersection = operatorCache<IIntersection>(
 
 export const Extrude = operatorCache<IExtrusion>('Part::Extrusion', _Extrude);
 
+export const Chamfer = operatorCache<IChamfer>('Edge::Chamfer', _Chamfer);
+
 export const ObjectFile = operatorCache<{
   content: string;
   type: IAny['Type'];
@@ -71,6 +75,7 @@ export function initShapesFactory() {
   setShapesFactory('Part::MultiFuse', Fuse);
   setShapesFactory('Part::Extrusion', Extrude);
   setShapesFactory('Part::MultiCommon', Intersection);
+  setShapesFactory('Edge::Chamfer', Chamfer);
   setShapesFactory('Sketcher::SketchObject', SketchObject);
   setShapesFactory('Post::Operator', _PostOperator);
 }

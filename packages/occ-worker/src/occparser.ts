@@ -18,7 +18,7 @@ export class OccParser {
 
   execute(): IDict<IParsedShape> {
     const maxDeviation = 0.1;
-    const theejsData: IDict<IParsedShape> = {};
+    const threejsData: IDict<IParsedShape> = {};
     this._shapeList.forEach(data => {
       const { shapeData, jcObject } = data;
       const { occShape, metadata } = shapeData;
@@ -40,7 +40,7 @@ export class OccParser {
       }
       const wireList = this._build_wire_mesh(occShape, maxDeviation);
 
-      theejsData[jcObject.name] = {
+      threejsData[jcObject.name] = {
         jcObject,
         faceList,
         edgeList: [...edgeList, ...wireList],
@@ -48,7 +48,7 @@ export class OccParser {
       };
     });
 
-    return theejsData;
+    return threejsData;
   }
 
   private _build_wire_mesh(
@@ -181,6 +181,7 @@ export class OccParser {
     }
     return faceList;
   }
+
   private _build_edge_mesh(shape: OCC.TopoDS_Shape): IEdge[] {
     const oc = this._occ;
     const edgeList: IEdge[] = [];

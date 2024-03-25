@@ -1,0 +1,24 @@
+{
+    "type": "object",
+    "description": "Edge::Chamfer",
+    "title": "IChamfer",
+    "required": ["Base", "Edge", "Dist", "Placement"],
+    "additionalProperties": false,
+    "properties": {
+      "Base": {
+        "type": "string",
+        "description": "The name of input object"
+      },
+      "Edge": {
+        "type": "number",
+        "description": "The edge index"
+      },
+      "Dist": {
+        "type": "number",
+        "description": "The distance of the symmetric chamfer"
+      },
+      "Placement": {
+        "$ref": "./placement.json"
+      }
+    }
+}
