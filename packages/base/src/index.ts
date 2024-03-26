@@ -1,6 +1,6 @@
 export * from './commands';
 export * from './formdialog';
-export * from './mainview';
+export * from './3dview';
 export * from './tools';
 export * from './types';
 export * from './widget';

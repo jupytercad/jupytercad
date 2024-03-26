@@ -467,7 +467,6 @@ const EXPORT_FORM = {
   syncData: (context: DocumentRegistry.IContext<IJupyterCadModel>) => {
     return (props: IDict) => {
       const { Name } = props;
-      console.log(`export to ${Name}`);
       requestAPI<{ done: boolean }>('jupytercad/export', {
         method: 'POST',
         body: JSON.stringify({
