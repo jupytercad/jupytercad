@@ -180,7 +180,7 @@ export class ObjectPropertiesForm extends React.Component<IProps, IStates> {
           className="jpcad-property-panel"
           data-path={this.props.filePath ?? ''}
         >
-          <div className="jpcad-property-outer">
+          <div className="jpcad-property-outer jp-scrollbar-tiny">
             <LuminoSchemaForm>{formSchema}</LuminoSchemaForm>
           </div>
           <div className="jpcad-property-buttons">

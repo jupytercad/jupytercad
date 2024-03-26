@@ -178,6 +178,14 @@ export class ToolbarWidget extends Toolbar {
           commands: options.commands
         })
       );
+      this.addItem(
+        'Split Screen',
+        new CommandToolbarButton({
+          id: CommandIDs.splitScreen,
+          label: '',
+          commands: options.commands
+        })
+      );
       this.addItem('separator5', new Separator());
       (options.externalCommands ?? []).forEach(cmd => {
         this.addItem(

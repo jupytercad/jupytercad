@@ -9,7 +9,7 @@ import {
 import { JupyterFrontEnd } from '@jupyterlab/application';
 import { showErrorMessage, WidgetTracker } from '@jupyterlab/apputils';
 import { ITranslator } from '@jupyterlab/translation';
-import { redoIcon, undoIcon } from '@jupyterlab/ui-components';
+import { redoIcon, undoIcon, filterIcon } from '@jupyterlab/ui-components';
 
 import { FormDialog } from './formdialog';
 import { SketcherDialog } from './sketcher/sketcherdialog';
@@ -467,7 +467,6 @@ const EXPORT_FORM = {
   syncData: (context: DocumentRegistry.IContext<IJupyterCadModel>) => {
     return (props: IDict) => {
       const { Name } = props;
-      console.log(`export to ${Name}`);
       requestAPI<{ done: boolean }>('jupytercad/export', {
         method: 'POST',
         body: JSON.stringify({
@@ -744,6 +743,24 @@ export function addCommands(
     }
   });
 
+  commands.addCommand(CommandIDs.splitScreen, {
+    label: trans.__('Split screen'),
+    isEnabled: () => Boolean(tracker.currentWidget),
+    icon: filterIcon,
+    execute: async () => {
+      const current = tracker.currentWidget;
+
+      if (!current) {
+        return;
+      }
+      if (current.content.splitScreen) {
+        current.content.splitScreen = {
+          enabled: !current.content.splitScreen.enabled
+        };
+      }
+    }
+  });
+
   commands.addCommand(CommandIDs.exportJcad, {
     label: trans.__('Export to .jcad'),
     isEnabled: () => {
@@ -796,7 +813,7 @@ export namespace CommandIDs {
   export const updateExplodedView = 'jupytercad:updateExplodedView';
   export const updateCameraSettings = 'jupytercad:updateCameraSettings';
   export const updateClipView = 'jupytercad:updateClipView';
-
+  export const splitScreen = 'jupytercad:splitScreen';
   export const exportJcad = 'jupytercad:exportJcad';
 }
 

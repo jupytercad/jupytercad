@@ -7,7 +7,13 @@ import { ISignal, Signal } from '@lumino/signaling';
 import * as React from 'react';
 
 import { MainView } from './mainview';
-import { AxeHelper, CameraSettings, ExplodedView, ClipSettings } from './types';
+import {
+  AxeHelper,
+  CameraSettings,
+  ExplodedView,
+  ClipSettings,
+  SplitScreenSettings
+} from './types';
 import { IJCadWorkerRegistry, IJupyterCadWidget } from '@jupytercad/schema';
 
 export class JupyterCadWidget
@@ -98,6 +104,16 @@ export class JupyterCadPanel extends ReactWidget {
 
   set clipView(value: ClipSettings | undefined) {
     this._view.set('clipView', value || null);
+  }
+
+  get splitScreen(): SplitScreenSettings | undefined {
+    return (this._view.get('splitScreen') ?? {
+      enabled: false
+    }) as SplitScreenSettings;
+  }
+
+  set splitScreen(value: SplitScreenSettings | undefined) {
+    this._view.set('splitScreen', value || null);
   }
 
   deleteAxes(): void {

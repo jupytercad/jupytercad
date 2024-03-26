@@ -48,14 +48,17 @@
     "build:packages": "python scripts/build_packages.py",
     "watch:lib": "lerna run --stream watch",
     "watch": "lerna watch -- lerna run build --scope=\\$LERNA_PACKAGE_NAME --include-dependents",
-    "build:lab": "lerna run --ignore @jupytercad/jupytercad-app build",
+    "build:lab": "lerna run --ignore @jupytercad/jupytercad-app --ignore @jupytercad/opencascade --ignore @jupytercad/occ-worker build",
     "build:app": "lerna run --ignore @jupytercad/jupytercad-lab build"
   },
   "resolutions": {
-    "@jupyterlab/apputils": "~4.0.0",
+    "@jupyterlab/apputils": "^4.3.0-alpha.1",
     "@lumino/coreutils": "^2.0.0",
-    "@jupyterlab/notebook": "~4.0.0",
-    "@jupyterlab/services": " ^7.0.0"
+    "@jupyterlab/notebook": "^4.2.0-alpha.1",
+    "@jupyterlab/services": "^7.2.0-alpha.1",
+    "@jupyter/ydoc": "file:../jupyter_ydoc/javascript",
+    "@jupyter/collaboration": "file:../jupyter-collaboration/packages/collaboration",
+    "@jupyter/docprovider": "file:../jupyter-collaboration/packages/docprovider"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "5.55.0",
@@ -64,6 +67,7 @@
     "eslint": "8.36.0",
     "eslint-config-prettier": "8.7.0",
     "eslint-plugin-prettier": "5.0.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "lerna": "^7.0.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.0.0",

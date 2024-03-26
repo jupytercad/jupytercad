@@ -36,6 +36,13 @@ export type ClipSettings = {
   showClipPlane: boolean;
 };
 
+/**
+ * The state of the split screen
+ */
+export type SplitScreenSettings = {
+  enabled: boolean;
+};
+
 export interface IControlPanelModel {
   disconnect(f: any): void;
   documentChanged: ISignal<IJupyterCadTracker, IJupyterCadWidget | null>;

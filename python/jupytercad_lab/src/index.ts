@@ -76,7 +76,7 @@ const controlPanel: JupyterFrontEndPlugin<void> = {
 
     const leftControlPanel = new LeftPanelWidget({
       model: controlModel,
-      annotationModel,
+      formSchemaRegistry,
       tracker
     });
     leftControlPanel.id = 'jupytercad::leftControlPanel';
@@ -85,7 +85,8 @@ const controlPanel: JupyterFrontEndPlugin<void> = {
 
     const rightControlPanel = new RightPanelWidget({
       model: controlModel,
-      formSchemaRegistry
+      annotationModel,
+      tracker
     });
     rightControlPanel.id = 'jupytercad::rightControlPanel';
     rightControlPanel.title.caption = 'JupyterCad Control Panel';

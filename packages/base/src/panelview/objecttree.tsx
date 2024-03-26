@@ -10,7 +10,6 @@ import {
 import { ReactWidget } from '@jupyterlab/apputils';
 import {
   closeIcon,
-  LabIcon,
   PanelWithToolbar,
   ToolbarButtonComponent
 } from '@jupyterlab/ui-components';
@@ -25,20 +24,10 @@ import {
 import * as React from 'react';
 import { v4 as uuid } from 'uuid';
 
-import visibilitySvg from '../../style/icon/visibility.svg';
-import visibilityOffSvg from '../../style/icon/visibilityOff.svg';
 import { IControlPanelModel } from '../types';
+import { visibilityIcon, visibilityOffIcon } from '../tools';
 
-const visibilityIcon = new LabIcon({
-  name: 'jupytercad:visibilityIcon',
-  svgstr: visibilitySvg
-});
-const visibilityOffIcon = new LabIcon({
-  name: 'jupytercad:visibilityOffIcon',
-  svgstr: visibilityOffSvg
-});
-
-const TREE_THEMES: ThemeSettings = {
+export const TREE_THEMES: ThemeSettings = {
   labTheme: {
     text: {
       fontSize: '14px',
@@ -260,7 +249,6 @@ class ObjectTreeReact extends React.Component<IProps, IStates> {
         selectedNodeIds.push(parentNode[0].items[0].id);
       }
     }
-
     return (
       <div className="jpcad-treeview-wrapper">
         <ReactTree

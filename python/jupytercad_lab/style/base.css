@@ -397,3 +397,29 @@ div.jpcad-toolbar-widget > div.jp-Toolbar-item:last-child {
 .jp-SchemaForm legend {
   width: 100%;
 }
+
+.jcad-Suggestion {
+  color: var(--jp-ui-font-color1);
+}
+
+.jpcad-control-panel-suggesion {
+  flex-grow: 1;
+}
+.jpcad-control-panel-suggesion.selected {
+  background-color: rgba(0, 122, 255, 0.23);
+}
+
+.jpcad-SplitSlider {
+  position: absolute;
+  cursor: ew-resize;
+  width: 2px;
+  height: 100%;
+  background-color: #bdbdbd;
+  opacity: 0.25;
+  left: calc(50% - 1px);
+}
+
+.jpcad-SplitSlider:hover {
+  border: 2px solid #bdbdbd;
+  opacity: 0.75;
+}

@@ -35,7 +35,13 @@ import { v4 as uuid } from 'uuid';
 
 import { FloatingAnnotation } from './annotation/view';
 import { getCSSVariableColor, throttle } from './tools';
-import { AxeHelper, CameraSettings, ExplodedView, ClipSettings } from './types';
+import {
+  AxeHelper,
+  CameraSettings,
+  ExplodedView,
+  ClipSettings,
+  SplitScreenSettings
+} from './types';
 
 // Apply the BVH extension
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -440,7 +446,25 @@ export class MainView extends React.Component<IProps, IStates> {
 
     this._renderer.clearDepth();
 
-    this._renderer.render(this._scene, this._camera);
+    if (this._sceneL) {
+      this._renderer.setScissor(
+        0,
+        0,
+        this._sliderPos,
+        this.divRef.current?.clientHeight || 0
+      );
+      this._renderer.render(this._sceneL, this._camera);
+
+      this._renderer.setScissor(
+        this._sliderPos,
+        0,
+        this.divRef.current?.clientWidth || 0,
+        this.divRef.current?.clientHeight || 0
+      );
+      this._renderer.render(this._scene, this._camera);
+    } else {
+      this._renderer.render(this._scene, this._camera);
+    }
   };
 
   resizeCanvasToDisplaySize = (): void => {
@@ -1258,6 +1282,11 @@ export class MainView extends React.Component<IProps, IStates> {
         this._updateClipping();
       }
     }
+
+    if (change.key === 'splitScreen') {
+      const splitSettings = change.newValue as SplitScreenSettings | undefined;
+      this._updateSplit(!!splitSettings?.enabled);
+    }
   }
 
   private _setupExplodedView() {
@@ -1332,6 +1361,84 @@ export class MainView extends React.Component<IProps, IStates> {
     this._camera.up.copy(up);
   }
 
+  private _updateSplit(enabled: boolean) {
+    if (enabled) {
+      if (!this._meshGroup) {
+        return;
+      }
+      // const currentGroup = this._meshGroup;
+      this._renderer.setScissorTest(true);
+
+      this._sliderPos = (this.divRef.current?.clientWidth ?? 0) / 2;
+      this._sceneL = new THREE.Scene();
+      const color = this.state.lightTheme ? 0xedf4f8 : 0x120b07;
+      this._sceneL.background = new THREE.Color(color);
+      this._sceneL.add(new THREE.AmbientLight(0xffffff, 0.5)); // soft white light
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
+      this._sceneL.add(light);
+      this._sceneL.add(this._meshGroup.clone(true));
+      this.initSlider(true);
+    } else {
+      this._renderer.setScissorTest(false);
+      this._sceneL?.clear();
+      this._sceneL = undefined;
+      this.initSlider(false);
+    }
+  }
+
+  initSlider(display: boolean) {
+    const slider = document.querySelector(
+      '.jpcad-SplitSlider'
+    ) as HTMLDivElement;
+    const sliderLabelLeft = document.querySelector(
+      '#split-label-left'
+    ) as HTMLDivElement;
+    const sliderLabelRight = document.querySelector(
+      '#split-label-right'
+    ) as HTMLDivElement;
+    if (display) {
+      slider.style.display = 'unset';
+      sliderLabelLeft.style.display = 'unset';
+      sliderLabelRight.style.display = 'unset';
+    } else {
+      slider.style.display = 'none';
+      sliderLabelLeft.style.display = 'none';
+      sliderLabelRight.style.display = 'none';
+    }
+    if (!this._slideInit) {
+      this._slideInit = true;
+      let currentX = 0;
+      let currentPost = 0;
+      const onPointerDown = (e: PointerEvent) => {
+        this._controls.enabled = false;
+        currentX = e.clientX;
+        currentPost = this._sliderPos;
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+      };
+
+      const onPointerUp = () => {
+        this._controls.enabled = true;
+        currentX = 0;
+        currentPost = 0;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+      };
+
+      const onPointerMove = (e: PointerEvent) => {
+        if (!this.divRef.current || !slider) {
+          return;
+        }
+
+        this._sliderPos = currentPost + e.clientX - currentX;
+
+        slider.style.left = this._sliderPos - slider.offsetWidth / 2 + 'px';
+      };
+
+      slider.style.touchAction = 'none'; // disable touch scroll
+      slider.addEventListener('pointerdown', onPointerDown);
+    }
+  }
   private _updateClipping() {
     if (this._clipSettings.enabled) {
       this._renderer.localClippingEnabled = true;
@@ -1383,6 +1490,13 @@ export class MainView extends React.Component<IProps, IStates> {
     DEFAULT_MESH_COLOR.set(getCSSVariableColor(DEFAULT_MESH_COLOR_CSS));
     DEFAULT_EDGE_COLOR.set(getCSSVariableColor(DEFAULT_EDGE_COLOR_CSS));
     SELECTED_MESH_COLOR.set(getCSSVariableColor(SELECTED_MESH_COLOR_CSS));
+    console.log('theme chaged', this._sceneL, lightTheme);
+
+    if (this._sceneL) {
+      this._sceneL.background = new THREE.Color(
+        lightTheme ? 0xedf4f8 : 0x120b07
+      );
+    }
 
     this.setState(old => ({ ...old, lightTheme }));
   };
@@ -1465,7 +1579,7 @@ export class MainView extends React.Component<IProps, IStates> {
             </div>
           );
         })}
-
+        <div className="jpcad-SplitSlider" style={{ display: 'none' }}></div>
         <div
           ref={this.divRef}
           style={{
@@ -1473,6 +1587,28 @@ export class MainView extends React.Component<IProps, IStates> {
             height: 'calc(100%)'
           }}
         />
+        <div
+          id={'split-label-left'}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            display: 'none'
+          }}
+        >
+          Original document
+        </div>
+        <div
+          id={'split-label-right'}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            display: 'none'
+          }}
+        >
+          Suggested document
+        </div>
       </div>
     );
   }
@@ -1520,4 +1656,7 @@ export class MainView extends React.Component<IProps, IStates> {
   private _contextMenu: ContextMenu;
   private _postWorkerId: Map<string, IJCadWorker> = new Map();
   private _firstRender = true;
+  private _sliderPos = 0;
+  private _slideInit = false;
+  private _sceneL: THREE.Scene | undefined = undefined;
 }

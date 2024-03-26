@@ -39,9 +39,10 @@ export const Annotation = (props: IAnnotationProps): JSX.Element => {
     <div className="jcad-Annotation">
       {props.children}
       <div style={{ paddingBottom: 10, maxHeight: 400, overflow: 'auto' }}>
-        {contents.map(content => {
+        {contents.map((content, idx) => {
           return (
             <Message
+              key={idx}
               user={content.user}
               message={content.value}
               self={model.user?.username === content.user?.username}

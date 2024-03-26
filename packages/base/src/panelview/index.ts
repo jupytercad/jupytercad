@@ -1,4 +1,4 @@
-export * from './annotations';
+export * from '../annotation/annotationspanel';
 export * from './formbuilder';
 export * from './header';
 export * from './leftpanel';

@@ -2,7 +2,7 @@ import { IAnnotationModel } from '@jupytercad/schema';
 import { PanelWithToolbar, ReactWidget } from '@jupyterlab/ui-components';
 import * as React from 'react';
 
-import { Annotation } from '../annotation/view';
+import { Annotation } from './view';
 
 interface IProps {
   model: IAnnotationModel;
@@ -41,7 +41,7 @@ export class ReactAnnotations extends React.Component<IProps> {
 
     const annotations = annotationIds.map((id: string) => {
       return (
-        <div>
+        <div key={id}>
           <Annotation model={this._model} itemId={id} />
           <hr className="jpcad-Annotations-Separator"></hr>
         </div>
@@ -54,7 +54,7 @@ export class ReactAnnotations extends React.Component<IProps> {
   private _model: IAnnotationModel;
 }
 
-export class Annotations extends PanelWithToolbar {
+export class AnnotationsPanel extends PanelWithToolbar {
   constructor(options: Annotations.IOptions) {
     super({});
 
