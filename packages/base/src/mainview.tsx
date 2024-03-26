@@ -31,6 +31,10 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+// import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { v4 as uuid } from 'uuid';
 
 import { FloatingAnnotation } from './annotation/view';
@@ -55,6 +59,9 @@ const DEFAULT_EDGE_COLOR = new THREE.Color(
 const SELECTED_MESH_COLOR = new THREE.Color(
   getCSSVariableColor(SELECTED_MESH_COLOR_CSS)
 );
+
+const DEFAULT_LINEWIDTH = 6;
+const SELECTED_LINEWIDTH = 15;
 
 export type BasicMesh = THREE.Mesh<
   THREE.BufferGeometry,
@@ -125,9 +132,11 @@ export class MainView extends React.Component<IProps, IStates> {
       this
     );
 
-    if (this._raycaster.params.Line) {
-      this._raycaster.params.Line.threshold = 0.1;
-    }
+    // @ts-ignore Missing ThreeJS typing
+    this._raycaster.params.Line2 = {};
+    // Is this threshold in pixels? It looks like it
+    // @ts-ignore Missing ThreeJS typing
+    this._raycaster.params.Line2.threshold = 50;
 
     this._worker = props.workerRegistry.getDefaultWorker();
     const id = this._worker.register({
@@ -414,7 +423,11 @@ export class MainView extends React.Component<IProps, IStates> {
 
         return {
           mesh: intersect.object as BasicMesh,
-          position: intersect.point
+          // @ts-ignore Missing threejs typing
+          position: intersect.pointOnLine
+            ? // @ts-ignore Missing threejs typing
+              intersect.pointOnLine
+            : intersect.point
         };
       }
     }
@@ -422,8 +435,15 @@ export class MainView extends React.Component<IProps, IStates> {
     return null;
   }
 
-  startAnimationLoop = (): void => {
-    this._requestID = window.requestAnimationFrame(this.startAnimationLoop);
+  animate = (): void => {
+    this._requestID = window.requestAnimationFrame(this.animate);
+
+    for (const material of this._edgeMaterials) {
+      material.resolution.set(
+        this._renderer.domElement.width,
+        this._renderer.domElement.height
+      );
+    }
 
     if (this._clippingPlaneMesh !== null) {
       this._clippingPlane.coplanarPoint(this._clippingPlaneMesh.position);
@@ -465,7 +485,7 @@ export class MainView extends React.Component<IProps, IStates> {
 
   generateScene = (): void => {
     this.sceneSetup();
-    this.startAnimationLoop();
+    this.animate();
     this.resizeCanvasToDisplaySize();
   };
 
@@ -632,9 +652,6 @@ export class MainView extends React.Component<IProps, IStates> {
       if (selectionName === '') {
         selectionName = (selection.mesh.parent as BasicMesh).name;
       }
-      if (selectionName.startsWith('edge')) {
-        console.log('selected edge', selectionName);
-      }
       if (e.ctrlKey) {
         if (selectedMeshesNames.has(selectionName)) {
           selectedMeshesNames.delete(selectionName);
@@ -696,6 +713,8 @@ export class MainView extends React.Component<IProps, IStates> {
     this._selectedMeshes = [];
 
     this._boundingGroup = new THREE.Box3();
+
+    this._edgeMaterials = [];
 
     this._meshGroup = new THREE.Group();
     Object.entries(payload).forEach(([objName, data]) => {
@@ -813,20 +832,21 @@ export class MainView extends React.Component<IProps, IStates> {
       }
 
       let edgeIdx = 0;
-      console.log('going through shapetomesh again');
       edgeList.forEach(edge => {
-        const edgeMaterial = new THREE.LineBasicMaterial({
-          linewidth: 5,
+        const edgeMaterial = new LineMaterial({
+          linewidth: DEFAULT_LINEWIDTH,
+          // @ts-ignore Missing typing in ThreeJS
           color: DEFAULT_EDGE_COLOR,
-          clippingPlanes: this._clippingPlanes
+          clippingPlanes: this._clippingPlanes,
+          // Depth offset so that lines are most always on top of faces
+          polygonOffset: true,
+          polygonOffsetFactor: -5,
+          polygonOffsetUnits: -5
         });
-        const edgeVertices = new THREE.Float32BufferAttribute(
-          edge.vertexCoord,
-          3
-        );
-        const edgeGeometry = new THREE.BufferGeometry();
-        edgeGeometry.setAttribute('position', edgeVertices);
-        const edgesMesh = new THREE.Line(edgeGeometry, edgeMaterial);
+        this._edgeMaterials.push(edgeMaterial);
+        const edgeGeometry = new LineGeometry();
+        edgeGeometry.setPositions(edge.vertexCoord);
+        const edgesMesh = new LineSegments2(edgeGeometry, edgeMaterial);
         edgesMesh.name = `edge-${edgeIdx++}`;
 
         meshGroup.add(edgesMesh);
@@ -870,6 +890,8 @@ export class MainView extends React.Component<IProps, IStates> {
     this.setState(old => ({ ...old, loading: false }));
   };
 
+  private _edgeMaterials: any[] = [];
+
   private _updateRefLength(force = false): void {
     if (this._meshGroup) {
       if (
@@ -902,6 +924,7 @@ export class MainView extends React.Component<IProps, IStates> {
       }
     }
   }
+
   private async _objToMesh(
     name: string,
     postResult: IPostResult
@@ -926,10 +949,7 @@ export class MainView extends React.Component<IProps, IStates> {
     }
 
     const material = new THREE.MeshPhongMaterial({
-      color: DEFAULT_MESH_COLOR,
-      polygonOffset: true,
-      polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1
+      color: DEFAULT_MESH_COLOR
     });
     const mesh = new THREE.Mesh(obj, material);
 
@@ -1001,32 +1021,37 @@ export class MainView extends React.Component<IProps, IStates> {
         const rgba = guidata[selectedMesh.name]['color'] as number[];
         originalColor = new THREE.Color(rgba[0], rgba[1], rgba[2]);
       }
-      if (selectedMesh?.material?.color) {
+      if (selectedMesh.material?.color) {
         selectedMesh.material.color = originalColor;
+      }
+      // @ts-ignore
+      if (selectedMesh.material?.linewidth) {
+        // @ts-ignore
+        selectedMesh.material.linewidth = DEFAULT_LINEWIDTH;
       }
     }
 
     // Set new selection
     this._selectedMeshes = [];
+
     for (const name of names) {
-      const selected = name.startsWith('edge') ? this._meshGroup
-      ?.getObjectByName(name) as BasicMesh | undefined : this._meshGroup
-        ?.getObjectByName(name)
-        ?.getObjectByName('main') as BasicMesh | undefined;
+      const selected = name.startsWith('edge')
+        ? (this._meshGroup?.getObjectByName(name) as BasicMesh | undefined)
+        : (this._meshGroup?.getObjectByName(name)?.getObjectByName('main') as
+            | BasicMesh
+            | undefined);
       if (!selected) {
         continue;
       }
-
-      console.log('Processing selection for ', name, selected);
 
       this._selectedMeshes.push(selected);
       if (selected?.material?.color) {
         selected.material.color = SELECTED_MESH_COLOR;
       }
       // @ts-ignore
-      if (selected?.material?.lineWidth) {
+      if (selected?.material?.linewidth) {
         // @ts-ignore
-        selected.material.lineWidth = 15;
+        selected.material.linewidth = SELECTED_LINEWIDTH;
       }
     }
   }
@@ -1291,7 +1316,7 @@ export class MainView extends React.Component<IProps, IStates> {
         // Draw lines
         const material = new THREE.LineBasicMaterial({
           color: DEFAULT_EDGE_COLOR,
-          linewidth: 2
+          linewidth: DEFAULT_LINEWIDTH
         });
         const geometry = new THREE.BufferGeometry().setFromPoints([
           explodedState.oldGeometryCenter,

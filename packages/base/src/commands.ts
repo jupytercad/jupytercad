@@ -318,7 +318,7 @@ const OPERATORS = {
         Name: newName('Chamfer', model),
         Base: selected.length > 0 ? selected[0] : objects[0].name ?? '',
         Edge: 0,
-        Dist: 1,
+        Dist: 0.2,
         Placement: { Position: [0, 0, 0], Axis: [0, 0, 1], Angle: 0 }
       };
     },
@@ -700,7 +700,7 @@ export function addCommands(
         ? tracker.currentWidget.context.model.sharedModel.editable
         : false;
     },
-    iconClass: "fa fa-grip-lines",
+    iconClass: 'fa fa-grip-lines',
     execute: Private.executeOperator('chamfer', tracker)
   });
 

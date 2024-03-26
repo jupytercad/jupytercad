@@ -34,6 +34,7 @@ export function _Chamfer(
       mapOfShape
     );
 
+    console.log('computing chamfer on edge', Edge);
     const edge = oc.TopoDS.Edge_1(mapOfShape.FindKey(Edge + 1));
 
     const chamferBuilder = new oc.BRepFilletAPI_MakeChamfer(base.occShape);

@@ -7,12 +7,14 @@
 You will need to do the following changes to the `build.yml` file:
 
 - Add the following symbols:
+
 ```yml
-    - symbol: Standard_Failure
-    - symbol: OCJS
+- symbol: Standard_Failure
+- symbol: OCJS
 ```
 
 - Add the following Cpp code:
+
 ```yml
 additionalCppCode: |
   class OCJS {
@@ -29,13 +31,15 @@ additionalCppCode: |
 
 ```javascript
 try {
-    // Failing OCC code
+  // Failing OCC code
 } catch (e) {
-    if (typeof e === "number") {
-        const exceptionData = oc.OCJS.getStandard_FailureData(e);
-        console.log(`That didn't work because: ${exceptionData.GetMessageString()}`);
-    } else {
-        console.log("Unkown error");
-    }
+  if (typeof e === 'number') {
+    const exceptionData = oc.OCJS.getStandard_FailureData(e);
+    console.log(
+      `That didn't work because: ${exceptionData.GetMessageString()}`
+    );
+  } else {
+    console.log('Unkown error');
+  }
 }
 ```

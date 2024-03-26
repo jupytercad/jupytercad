@@ -22,7 +22,7 @@ const BOOLEAN_OPERATORS = [
   'Part::MultiFuse',
   'Part::Extrusion',
   'Part::MultiCommon',
-  'Edge::Chamfer',
+  'Edge::Chamfer'
 ] as const;
 
 const MISC_OPERATORS = [
