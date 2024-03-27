@@ -36,7 +36,10 @@ export function _Fillet(
 
     const edge = oc.TopoDS.Edge_1(mapOfShape.FindKey(Edge + 1));
 
-    const filletBuilder = new oc.BRepFilletAPI_MakeFillet(base.occShape, oc.ChFi3d_FilletShape);
+    const filletBuilder = new oc.BRepFilletAPI_MakeFillet(
+      base.occShape,
+      oc.ChFi3d_FilletShape
+    );
     filletBuilder.Add_2(Radius, edge);
 
     filletBuilder.Build(new oc.Message_ProgressRange_1());
