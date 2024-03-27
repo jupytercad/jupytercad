@@ -12,6 +12,7 @@ import {
   IJupyterCadModel,
   IMainMessage,
   IPostResult,
+  ISelection,
   MainAction,
   WorkerAction
 } from '@jupytercad/schema';
@@ -421,8 +422,12 @@ export class MainView extends React.Component<IProps, IStates> {
           continue;
         }
 
+        const intersectMesh = intersect.object.name.includes('-front') ?
+          intersect.object.parent.getObjectByName(intersect.object.name.replace('-front', '')) :
+          intersect.object;
+
         return {
-          mesh: intersect.object as BasicMesh,
+          mesh: intersectMesh as BasicMesh,
           // @ts-ignore Missing threejs typing
           position: intersect.pointOnLine
             ? // @ts-ignore Missing threejs typing
@@ -644,14 +649,11 @@ export class MainView extends React.Component<IProps, IStates> {
   private _onClick(e: MouseEvent) {
     const selection = this._pick();
     const selectedMeshesNames = new Set(
-      this._selectedMeshes.map(sel => sel.parent!.name)
+      this._selectedMeshes.map(sel => sel.name)
     );
 
     if (selection) {
-      let selectionName = selection.mesh.name;
-      if (selectionName === '') {
-        selectionName = (selection.mesh.parent as BasicMesh).name;
-      }
+      const selectionName = selection.mesh.name;
       if (e.ctrlKey) {
         if (selectedMeshesNames.has(selectionName)) {
           selectedMeshesNames.delete(selectionName);
@@ -668,8 +670,15 @@ export class MainView extends React.Component<IProps, IStates> {
       }
 
       const names = Array.from(selectedMeshesNames);
-      this._updateSelected(names);
-      this._model.syncSelectedObject(names, this.state.id);
+
+      const newSelection: { [key: string]: ISelection } = {};
+      for (const name of names) {
+        newSelection[name] = this._meshGroup?.getObjectByName(name)
+          ?.userData as ISelection;
+      }
+
+      this._updateSelected(newSelection);
+      this._model.syncSelected(newSelection, this.state.id);
     }
   }
 
@@ -789,7 +798,7 @@ export class MainView extends React.Component<IProps, IStates> {
       }
 
       const meshGroup = new THREE.Group();
-      meshGroup.name = objName;
+      meshGroup.name = `${objName}-group`;
       meshGroup.visible = visible;
 
       const baseMat = new THREE.MeshBasicMaterial();
@@ -807,6 +816,7 @@ export class MainView extends React.Component<IProps, IStates> {
       mat0.stencilZFail = THREE.IncrementWrapStencilOp;
       mat0.stencilZPass = THREE.IncrementWrapStencilOp;
       const backFaces = new THREE.Mesh(geometry, mat0);
+      backFaces.name = `${objName}-back`;
       meshGroup.add(backFaces);
 
       // front faces
@@ -817,10 +827,14 @@ export class MainView extends React.Component<IProps, IStates> {
       mat1.stencilZFail = THREE.DecrementWrapStencilOp;
       mat1.stencilZPass = THREE.DecrementWrapStencilOp;
       const frontFaces = new THREE.Mesh(geometry, mat1);
+      frontFaces.name = `${objName}-front`;
       meshGroup.add(frontFaces);
 
       const mainMesh = new THREE.Mesh(geometry, material);
-      mainMesh.name = 'main';
+      mainMesh.name = objName;
+      mainMesh.userData = {
+        type: 'shape'
+      };
 
       if (visible) {
         this._boundingGroup.expandByObject(mainMesh);
@@ -847,7 +861,18 @@ export class MainView extends React.Component<IProps, IStates> {
         const edgeGeometry = new LineGeometry();
         edgeGeometry.setPositions(edge.vertexCoord);
         const edgesMesh = new LineSegments2(edgeGeometry, edgeMaterial);
-        edgesMesh.name = `edge-${edgeIdx++}`;
+        edgesMesh.name = `edge-${objName}-${edgeIdx++}`;
+        edgesMesh.userData = {
+          type: 'edge',
+          edgeIndex: edgeIdx,
+          parent: objName
+        };
+
+        if (selectedNames.includes(edgesMesh.name)) {
+          this._selectedMeshes.push(edgesMesh as unknown as BasicMesh);
+          edgesMesh.material.color = SELECTED_MESH_COLOR;
+          edgesMesh.material.linewidth = SELECTED_LINEWIDTH;
+        }
 
         meshGroup.add(edgesMesh);
       });
@@ -1008,7 +1033,7 @@ export class MainView extends React.Component<IProps, IStates> {
     return new THREE.Mesh(this._pointerGeometry, material);
   }
 
-  private _updateSelected(names: string[]) {
+  private _updateSelected(selection: { [key: string]: ISelection }) {
     // Reset original color for old selection
     for (const selectedMesh of this._selectedMeshes) {
       let originalColor = DEFAULT_MESH_COLOR;
@@ -1034,24 +1059,23 @@ export class MainView extends React.Component<IProps, IStates> {
     // Set new selection
     this._selectedMeshes = [];
 
-    for (const name of names) {
-      const selected = name.startsWith('edge')
-        ? (this._meshGroup?.getObjectByName(name) as BasicMesh | undefined)
-        : (this._meshGroup?.getObjectByName(name)?.getObjectByName('main') as
-            | BasicMesh
-            | undefined);
-      if (!selected) {
+    for (const selectionName in selection) {
+      const selectedMesh = this._meshGroup?.getObjectByName(
+        selectionName
+      ) as BasicMesh;
+
+      if (!selectedMesh) {
         continue;
       }
 
-      this._selectedMeshes.push(selected);
-      if (selected?.material?.color) {
-        selected.material.color = SELECTED_MESH_COLOR;
+      this._selectedMeshes.push(selectedMesh);
+      if (selectedMesh?.material?.color) {
+        selectedMesh.material.color = SELECTED_MESH_COLOR;
       }
       // @ts-ignore
-      if (selected?.material?.linewidth) {
+      if (selectedMesh?.material?.linewidth) {
         // @ts-ignore
-        selected.material.linewidth = SELECTED_LINEWIDTH;
+        selectedMesh.material.linewidth = SELECTED_LINEWIDTH;
       }
     }
   }
@@ -1101,7 +1125,7 @@ export class MainView extends React.Component<IProps, IStates> {
       }
 
       // Sync selected
-      if (Array.isArray(remoteState.selected.value)) {
+      if (remoteState.selected?.value) {
         this._updateSelected(remoteState.selected.value);
       }
 
@@ -1133,7 +1157,7 @@ export class MainView extends React.Component<IProps, IStates> {
       // Sync local selection if needed
       const localState = this._model.localState;
 
-      if (localState?.selected && Array.isArray(localState.selected.value)) {
+      if (localState?.selected?.value) {
         this._updateSelected(localState.selected.value);
       }
     }
@@ -1150,9 +1174,9 @@ export class MainView extends React.Component<IProps, IStates> {
       let collaboratorPointer = this._collaboratorPointers[clientId];
 
       if (pointer) {
-        const parent = this._meshGroup
-          ?.getObjectByName(pointer.parent)
-          ?.getObjectByName('main') as BasicMesh;
+        const parent = this._meshGroup?.getObjectByName(
+          pointer.parent
+        ) as BasicMesh;
 
         if (!collaboratorPointer) {
           const mesh = this._createPointer(clientState.user);
@@ -1218,9 +1242,9 @@ export class MainView extends React.Component<IProps, IStates> {
 
     if (guidata) {
       for (const objName in guidata) {
-        const obj = this._meshGroup
-          ?.getObjectByName(objName)
-          ?.getObjectByName('main') as BasicMesh | undefined;
+        const obj = this._meshGroup?.getObjectByName(objName) as
+          | BasicMesh
+          | undefined;
         if (!obj) {
           continue;
         }
@@ -1307,7 +1331,7 @@ export class MainView extends React.Component<IProps, IStates> {
 
       for (const group of this._meshGroup?.children as THREE.Group[]) {
         const explodedState = this._computeExplodedState(
-          group.getObjectByName('main') as BasicMesh
+          group.getObjectByName(group.name.replace('-group', '')) as BasicMesh
         );
 
         group.position.set(0, 0, 0);
@@ -1462,9 +1486,9 @@ export class MainView extends React.Component<IProps, IStates> {
           if (!this._model.annotationModel) {
             return null;
           }
-          const parent = this._meshGroup
-            ?.getObjectByName(annotation.parent)
-            ?.getObjectByName('main') as BasicMesh;
+          const parent = this._meshGroup?.getObjectByName(
+            annotation.parent
+          ) as BasicMesh;
           const position = new THREE.Vector3(
             annotation.position[0],
             annotation.position[1],

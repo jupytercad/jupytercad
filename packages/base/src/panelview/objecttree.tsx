@@ -5,7 +5,8 @@ import {
   IJcadObjectDocChange,
   IJupyterCadClientState,
   IJupyterCadDoc,
-  IJupyterCadModel
+  IJupyterCadModel,
+  ISelection
 } from '@jupytercad/schema';
 import { ReactWidget } from '@jupyterlab/apputils';
 import {
@@ -208,6 +209,26 @@ class ObjectTreeReact extends React.Component<IProps, IStates> {
     }
   };
 
+  private _selectedNodes(selection?: { [key: string]: ISelection }): string[] {
+    if (selection === undefined) {
+      return [];
+    }
+
+    const meshNames = new Set<string>();
+    console.log('selection udated!', selection);
+    for (const selectionName in selection) {
+      const selected = selection[selectionName];
+
+      if (selected.type === 'shape') {
+        meshNames.add(selectionName);
+      } else {
+        meshNames.add(selected.parent as string);
+      }
+    }
+
+    return Array.from(meshNames);
+  }
+
   private _onClientSharedStateChanged = (
     sender: IJupyterCadModel,
     clients: Map<number, IJupyterCadClientState>
@@ -225,10 +246,10 @@ class ObjectTreeReact extends React.Component<IProps, IStates> {
       const remoteState = clients.get(localState.remoteUser);
 
       if (remoteState?.selected?.value) {
-        selectedNodes = remoteState.selected.value;
+        selectedNodes = this._selectedNodes(remoteState.selected.value);
       }
     } else if (localState.selected?.value) {
-      selectedNodes = localState.selected.value;
+      selectedNodes = this._selectedNodes(localState.selected.value);
     }
 
     const openNodes = [...this.state.openNodes];
@@ -277,23 +298,22 @@ class ObjectTreeReact extends React.Component<IProps, IStates> {
             }
 
             if (id && id.length > 0) {
-              const names: string[] = [];
-              for (const subid of id) {
-                const name = subid as string;
-
-                if (name.includes('#')) {
-                  names.push(name.split('#')[0]);
-                } else {
-                  names.push(name);
-                }
-              }
-
-              this.props.cpModel.jcadModel?.syncSelectedObject(
-                names,
-                this.state.id
-              );
+              // TODO
+              // const names: string[] = [];
+              // for (const subid of id) {
+              //   const name = subid as string;
+              //   if (name.includes('#')) {
+              //     names.push(name.split('#')[0]);
+              //   } else {
+              //     names.push(name);
+              //   }
+              // }
+              // this.props.cpModel.jcadModel?.syncSelectedObject(
+              //   names,
+              //   this.state.id
+              // );
             } else {
-              this.props.cpModel.jcadModel?.syncSelectedObject([]);
+              this.props.cpModel.jcadModel?.syncSelected({});
             }
           }}
           RenderNode={opts => {
@@ -376,7 +396,7 @@ class ObjectTreeReact extends React.Component<IProps, IStates> {
                           this.props.cpModel.jcadModel?.sharedModel.removeObjectByName(
                             objectId
                           );
-                          this.props.cpModel.jcadModel?.syncSelectedObject([]);
+                          this.props.cpModel.jcadModel?.syncSelected({});
                         }}
                         icon={closeIcon}
                       />

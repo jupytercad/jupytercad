@@ -60,10 +60,16 @@ export interface IJcadObjectDocChange {
   }>;
 }
 
+export interface ISelection {
+  type: 'shape' | 'edge';
+  edgeIndex?: number;
+  parent?: string;
+}
+
 export interface IJupyterCadClientState {
   pointer: { value?: Pointer; emitter?: string | null };
   camera: { value?: Camera; emitter?: string | null };
-  selected: { value?: string[]; emitter?: string | null };
+  selected: { value?: { [key: string]: ISelection }; emitter?: string | null };
   selectedPropField?: {
     id: string | null;
     value: any;
@@ -144,7 +150,7 @@ export interface IJupyterCadModel extends DocumentRegistry.IModel {
 
   syncPointer(position: Pointer | undefined, emitter?: string): void;
   syncCamera(camera: Camera | undefined, emitter?: string): void;
-  syncSelectedObject(name: string[], emitter?: string): void;
+  syncSelected(value: { [key: string]: ISelection }, emitter?: string): void;
   syncSelectedPropField(data: {
     id: string | null;
     value: any;

@@ -14,6 +14,7 @@ import {
   IJupyterCadClientState,
   IJupyterCadDoc,
   IJupyterCadModel,
+  ISelection,
   IUserData,
   Pointer
 } from './interfaces';
@@ -193,9 +194,9 @@ export class JupyterCadModel implements IJupyterCadModel {
     });
   }
 
-  syncSelectedObject(name: string[], emitter?: string): void {
+  syncSelected(value: { [key: string]: ISelection }, emitter?: string): void {
     this.sharedModel.awareness.setLocalStateField('selected', {
-      value: name,
+      value,
       emitter: emitter
     });
   }

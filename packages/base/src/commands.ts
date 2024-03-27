@@ -132,17 +132,42 @@ const PARTS = {
   }
 };
 
+function getSelectedMeshName(
+  selection: { [key: string]: any } | undefined,
+  index: number
+): string {
+  if (selection === undefined) {
+    return '';
+  }
+
+  const selectedNames = Object.keys(selection);
+
+  if (selectedNames[index]) {
+    const selected = selection[selectedNames[index]];
+
+    if (selected.type === 'shape') {
+      return selectedNames[index];
+    } else {
+      return selected.parent as string;
+    }
+  }
+
+  return '';
+}
+
 const OPERATORS = {
   cut: {
     title: 'Cut parameters',
     shape: 'Part::Cut',
     default: (model: IJupyterCadModel) => {
       const objects = model.getAllObject();
-      const selected = model.localState?.selected.value || [];
+      const selected = model.localState?.selected.value || {};
+      const sel0 = getSelectedMeshName(selected, 0);
+      const sel1 = getSelectedMeshName(selected, 1);
       return {
         Name: newName('Cut', model),
-        Base: selected.length > 0 ? selected[0] : objects[0].name ?? '',
-        Tool: selected.length > 1 ? selected[1] : objects[1].name ?? '',
+        Base: sel0 || objects[0].name || '',
+        Tool: sel1 || objects[1].name || '',
         Refine: false,
         Placement: { Position: [0, 0, 0], Axis: [0, 0, 1], Angle: 0 }
       };
@@ -180,10 +205,11 @@ const OPERATORS = {
     shape: 'Part::Extrusion',
     default: (model: IJupyterCadModel) => {
       const objects = model.getAllObject();
-      const selected = model.localState?.selected.value || [];
+      const selected = model.localState?.selected.value || {};
+      const sel0 = getSelectedMeshName(selected, 0);
       return {
         Name: newName('Extrusion', model),
-        Base: [selected.length > 0 ? selected[0] : objects[0].name ?? ''],
+        Base: [sel0 || objects[0].name || ''],
         Dir: [0, 0, 1],
         LengthFwd: 10,
         LengthRev: 0,
@@ -223,13 +249,12 @@ const OPERATORS = {
     shape: 'Part::MultiFuse',
     default: (model: IJupyterCadModel) => {
       const objects = model.getAllObject();
-      const selected = model.localState?.selected.value || [];
+      const selected = model.localState?.selected.value || {};
+      const sel0 = getSelectedMeshName(selected, 0);
+      const sel1 = getSelectedMeshName(selected, 1);
       return {
         Name: newName('Union', model),
-        Shapes: [
-          selected.length > 0 ? selected[0] : objects[0].name ?? '',
-          selected.length > 1 ? selected[1] : objects[1].name ?? ''
-        ],
+        Shapes: [sel0 || objects[0].name || '', sel1 || objects[1].name || ''],
         Refine: false,
         Placement: { Position: [0, 0, 0], Axis: [0, 0, 1], Angle: 0 }
       };
@@ -268,13 +293,12 @@ const OPERATORS = {
     shape: 'Part::MultiCommon',
     default: (model: IJupyterCadModel) => {
       const objects = model.getAllObject();
-      const selected = model.localState?.selected.value || [];
+      const selected = model.localState?.selected.value || {};
+      const sel0 = getSelectedMeshName(selected, 0);
+      const sel1 = getSelectedMeshName(selected, 1);
       return {
         Name: newName('Intersection', model),
-        Shapes: [
-          selected.length > 0 ? selected[0] : objects[0].name ?? '',
-          selected.length > 1 ? selected[1] : objects[1].name ?? ''
-        ],
+        Shapes: [sel0 || objects[0].name || '', sel1 || objects[1].name || ''],
         Refine: false,
         Placement: { Position: [0, 0, 0], Axis: [0, 0, 1], Angle: 0 }
       };
@@ -313,10 +337,11 @@ const OPERATORS = {
     shape: 'Edge::Chamfer',
     default: (model: IJupyterCadModel) => {
       const objects = model.getAllObject();
-      const selected = model.localState?.selected?.value || [];
+      const selected = model.localState?.selected.value || {};
+      const sel0 = getSelectedMeshName(selected, 0);
       return {
         Name: newName('Chamfer', model),
-        Base: selected.length > 0 ? selected[0] : objects[0].name ?? '',
+        Base: sel0 || objects[0].name || '',
         Edge: 0,
         Dist: 0.2,
         Placement: { Position: [0, 0, 0], Axis: [0, 0, 1], Angle: 0 }
