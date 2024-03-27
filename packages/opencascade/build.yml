@@ -23,6 +23,7 @@ mainBuild:
     - symbol: BRepBuilderAPI_ModifyShape
     - symbol: BRepFilletAPI_LocalOperation
     - symbol: BRepFilletAPI_MakeChamfer
+    - symbol: BRepFilletAPI_MakeFillet
     - symbol: BRepGProp
     - symbol: BRepMesh_DiscretRoot
     - symbol: BRepMesh_IncrementalMesh
@@ -35,6 +36,7 @@ mainBuild:
     - symbol: BRepPrimAPI_MakeSweep
     - symbol: BRepPrimAPI_MakeTorus
     - symbol: BRepTools
+    - symbol: ChFi3d_FilletShape
     - symbol: GC_MakeCircle
     - symbol: GC_MakeSegment
     - symbol: GC_Root
