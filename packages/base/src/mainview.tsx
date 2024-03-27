@@ -861,7 +861,7 @@ export class MainView extends React.Component<IProps, IStates> {
         const edgeGeometry = new LineGeometry();
         edgeGeometry.setPositions(edge.vertexCoord);
         const edgesMesh = new LineSegments2(edgeGeometry, edgeMaterial);
-        edgesMesh.name = `edge-${objName}-${edgeIdx++}`;
+        edgesMesh.name = `edge-${objName}-${edgeIdx}`;
         edgesMesh.userData = {
           type: 'edge',
           edgeIndex: edgeIdx,
@@ -875,6 +875,7 @@ export class MainView extends React.Component<IProps, IStates> {
         }
 
         meshGroup.add(edgesMesh);
+        edgeIdx++;
       });
       meshGroup.add(mainMesh);
 

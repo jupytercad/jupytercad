@@ -4,6 +4,7 @@ import {
   IJCadObject,
   IJupyterCadDoc,
   IJupyterCadModel,
+  ISelection,
   Parts
 } from '@jupytercad/schema';
 import { JupyterFrontEnd } from '@jupyterlab/application';
@@ -133,7 +134,7 @@ const PARTS = {
 };
 
 function getSelectedMeshName(
-  selection: { [key: string]: any } | undefined,
+  selection: { [key: string]: ISelection } | undefined,
   index: number
 ): string {
   if (selection === undefined) {
@@ -153,6 +154,22 @@ function getSelectedMeshName(
   }
 
   return '';
+}
+
+function getSelectedEdge(selection: { [key: string]: ISelection } | undefined): {shape: string, edgeIndex: number} | undefined {
+  if (selection === undefined) {
+    return;
+  }
+
+  const selectedNames = Object.keys(selection);
+  for (const name of selectedNames) {
+    if (selection[name].type === 'edge') {
+      return {
+        shape: selection[name].parent!,
+        edgeIndex: selection[name].edgeIndex!
+      };
+    }
+  }
 }
 
 const OPERATORS = {
@@ -337,12 +354,11 @@ const OPERATORS = {
     shape: 'Edge::Chamfer',
     default: (model: IJupyterCadModel) => {
       const objects = model.getAllObject();
-      const selected = model.localState?.selected.value || {};
-      const sel0 = getSelectedMeshName(selected, 0);
+      const selectedEdge = getSelectedEdge(model.localState?.selected.value);
       return {
         Name: newName('Chamfer', model),
-        Base: sel0 || objects[0].name || '',
-        Edge: 0,
+        Base: selectedEdge?.shape || objects[0].name || '',
+        Edge: selectedEdge?.edgeIndex || 0,
         Dist: 0.2,
         Placement: { Position: [0, 0, 0], Axis: [0, 0, 1], Angle: 0 }
       };
