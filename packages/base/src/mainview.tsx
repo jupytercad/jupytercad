@@ -60,8 +60,8 @@ const SELECTED_MESH_COLOR = new THREE.Color(
   getCSSVariableColor(SELECTED_MESH_COLOR_CSS)
 );
 
-const DEFAULT_LINEWIDTH = 6;
-const SELECTED_LINEWIDTH = 15;
+const DEFAULT_LINEWIDTH = 4;
+const SELECTED_LINEWIDTH = 12;
 
 export type BasicMesh = THREE.Mesh<
   THREE.BufferGeometry,
