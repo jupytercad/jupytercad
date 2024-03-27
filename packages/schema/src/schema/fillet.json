@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "description": "Edge::Fillet",
+  "title": "IFillet",
+  "required": ["Base", "Edge", "Radius", "Placement"],
+  "additionalProperties": false,
+  "properties": {
+    "Base": {
+      "type": "string",
+      "description": "The name of input object"
+    },
+    "Edge": {
+      "type": "number",
+      "description": "The edge index"
+    },
+    "Radius": {
+      "type": "number",
+      "description": "The radius for the fillet"
+    },
+    "Placement": {
+      "$ref": "./placement.json"
+    }
+  }
+}

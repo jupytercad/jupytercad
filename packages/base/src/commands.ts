@@ -391,6 +391,47 @@ const OPERATORS = {
         }
       };
     }
+  },
+  fillet: {
+    title: 'Fillet parameters',
+    shape: 'Edge::Fillet',
+    default: (model: IJupyterCadModel) => {
+      const objects = model.getAllObject();
+      const selectedEdge = getSelectedEdge(model.localState?.selected.value);
+      return {
+        Name: newName('Fillet', model),
+        Base: selectedEdge?.shape || objects[0].name || '',
+        Edge: selectedEdge?.edgeIndex || 0,
+        Radius: 0.2,
+        Placement: { Position: [0, 0, 0], Axis: [0, 0, 1], Angle: 0 }
+      };
+    },
+    syncData: (model: IJupyterCadModel) => {
+      return (props: IDict) => {
+        const { Name, ...parameters } = props;
+        const objectModel: IJCadObject = {
+          shape: 'Edge::Fillet',
+          parameters,
+          visible: true,
+          name: Name
+        };
+        const sharedModel = model.sharedModel;
+        if (sharedModel) {
+          sharedModel.transact(() => {
+            setVisible(sharedModel, parameters['Base'], false);
+
+            if (!sharedModel.objectExists(objectModel.name)) {
+              sharedModel.addObject(objectModel);
+            } else {
+              showErrorMessage(
+                'The object already exists',
+                'There is an existing object with the same name.'
+              );
+            }
+          });
+        }
+      };
+    }
   }
 };
 
@@ -747,6 +788,17 @@ export function addCommands(
     execute: Private.executeOperator('chamfer', tracker)
   });
 
+  commands.addCommand(CommandIDs.fillet, {
+    label: trans.__('Make fillet'),
+    isEnabled: () => {
+      return tracker.currentWidget
+        ? tracker.currentWidget.context.model.sharedModel.editable
+        : false;
+    },
+    iconClass: 'fa fa-grip-lines',
+    execute: Private.executeOperator('fillet', tracker)
+  });
+
   commands.addCommand(CommandIDs.updateAxes, {
     label: trans.__('Axes Helper'),
     isEnabled: () => Boolean(tracker.currentWidget),
@@ -888,6 +940,7 @@ export namespace CommandIDs {
   export const intersection = 'jupytercad:intersection';
 
   export const chamfer = 'jupytercad:chamfer';
+  export const fillet = 'jupytercad:fillet';
 
   export const updateAxes = 'jupytercad:updateAxes';
   export const updateExplodedView = 'jupytercad:updateExplodedView';
