@@ -211,8 +211,8 @@ class ObjectPropertiesReact extends React.Component<IProps, IStates> {
       // Only show object properties if ONE object is selected and it's a shape
       if (
         selection === undefined ||
-        selectedObjectNames.length != 1 ||
-        selection[selectedObjectNames[0]].type != 'shape'
+        selectedObjectNames.length !== 1 ||
+        selection[selectedObjectNames[0]].type !== 'shape'
       ) {
         this.setState(old => ({
           ...old,
