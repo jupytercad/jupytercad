@@ -1259,7 +1259,7 @@ export class MainView extends React.Component<IProps, IStates> {
           const objGuiData = guidata[objName];
 
           if (objGuiData) {
-            obj.visible = objGuiData['visibility'];
+            obj.parent!.visible = objGuiData['visibility'];
 
             if (explodedLineHelper) {
               explodedLineHelper.visible = objGuiData['visibility'];
