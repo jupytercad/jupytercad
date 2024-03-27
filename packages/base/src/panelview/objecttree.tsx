@@ -209,13 +209,8 @@ class ObjectTreeReact extends React.Component<IProps, IStates> {
     }
   };
 
-  private _selectedNodes(selection?: { [key: string]: ISelection }): string[] {
-    if (selection === undefined) {
-      return [];
-    }
-
+  private _selectedNodes(selection: { [key: string]: ISelection }): string[] {
     const meshNames = new Set<string>();
-    console.log('selection udated!', selection);
     for (const selectionName in selection) {
       const selected = selection[selectionName];
 
@@ -298,20 +293,23 @@ class ObjectTreeReact extends React.Component<IProps, IStates> {
             }
 
             if (id && id.length > 0) {
-              // TODO
-              // const names: string[] = [];
-              // for (const subid of id) {
-              //   const name = subid as string;
-              //   if (name.includes('#')) {
-              //     names.push(name.split('#')[0]);
-              //   } else {
-              //     names.push(name);
-              //   }
-              // }
-              // this.props.cpModel.jcadModel?.syncSelectedObject(
-              //   names,
-              //   this.state.id
-              // );
+              const newSelection: { [key: string]: ISelection } = {};
+              for (const subid of id) {
+                const name = subid as string;
+                if (name.includes('#')) {
+                  newSelection[name.split('#')[0]] = {
+                    type: 'shape'
+                  };
+                } else {
+                  newSelection[name] = {
+                    type: 'shape'
+                  };
+                }
+              }
+              this.props.cpModel.jcadModel?.syncSelected(
+                newSelection,
+                this.state.id
+              );
             } else {
               this.props.cpModel.jcadModel?.syncSelected({});
             }
