@@ -156,7 +156,9 @@ function getSelectedMeshName(
   return '';
 }
 
-function getSelectedEdge(selection: { [key: string]: ISelection } | undefined): {shape: string, edgeIndex: number} | undefined {
+function getSelectedEdge(
+  selection: { [key: string]: ISelection } | undefined
+): { shape: string; edgeIndex: number } | undefined {
   if (selection === undefined) {
     return;
   }
