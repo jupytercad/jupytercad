@@ -30,22 +30,18 @@ async function loadComponent(url: string, scope: string) {
 
   // From MIT-licensed https://github.com/module-federation/module-federation-examples/blob/af043acd6be1718ee195b2511adf6011fba4233c/advanced-api/dynamic-remotes/app1/src/App.js#L6-L12
   // eslint-disable-next-line no-undef
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   await __webpack_init_sharing__('default');
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   const container = window._JUPYTERLAB[scope];
   // Initialize the container, it may provide shared modules and may need ours
   // eslint-disable-next-line no-undef
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   await container.init(__webpack_share_scopes__.default);
 }
 
 async function createModule(scope: string, module: string) {
   try {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const factory = await window._JUPYTERLAB[scope].get(module);
     return factory();
