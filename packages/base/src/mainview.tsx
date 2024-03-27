@@ -34,7 +34,6 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-// import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { v4 as uuid } from 'uuid';
 
@@ -918,8 +917,6 @@ export class MainView extends React.Component<IProps, IStates> {
     this.setState(old => ({ ...old, loading: false }));
   };
 
-  private _edgeMaterials: any[] = [];
-
   private _updateRefLength(force = false): void {
     if (this._meshGroup) {
       if (
@@ -1566,6 +1563,7 @@ export class MainView extends React.Component<IProps, IStates> {
   private _clippingPlaneMesh: THREE.Mesh | null = null; // Plane mesh used for "filling the gaps"
   private _clippingPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0); // Mathematical object for clipping computation
   private _clippingPlanes = [this._clippingPlane];
+  private _edgeMaterials: any[] = [];
 
   private _scene: THREE.Scene; // Threejs scene
   private _camera: THREE.PerspectiveCamera | THREE.OrthographicCamera; // Threejs camera
