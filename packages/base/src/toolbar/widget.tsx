@@ -135,6 +135,26 @@ export class ToolbarWidget extends Toolbar {
       this.addItem('separator3', new Separator());
 
       this.addItem(
+        'Chamfer',
+        new CommandToolbarButton({
+          id: CommandIDs.chamfer,
+          label: '',
+          commands: options.commands
+        })
+      );
+
+      this.addItem(
+        'Fillet',
+        new CommandToolbarButton({
+          id: CommandIDs.fillet,
+          label: '',
+          commands: options.commands
+        })
+      );
+
+      this.addItem('separator4', new Separator());
+
+      this.addItem(
         'New Sketch',
         new CommandToolbarButton({
           id: CommandIDs.newSketch,
@@ -143,7 +163,7 @@ export class ToolbarWidget extends Toolbar {
         })
       );
 
-      this.addItem('separator4', new Separator());
+      this.addItem('separator5', new Separator());
 
       // View helpers
       this.addItem(
@@ -178,7 +198,9 @@ export class ToolbarWidget extends Toolbar {
           commands: options.commands
         })
       );
-      this.addItem('separator5', new Separator());
+
+      this.addItem('separator6', new Separator());
+
       (options.externalCommands ?? []).forEach(cmd => {
         this.addItem(
           cmd.name,

@@ -205,22 +205,30 @@ class ObjectPropertiesReact extends React.Component<IProps, IStates> {
       }
     }
     if (newState) {
-      const selected = '' + newState.selected.value;
-      if (selected !== this.state.selectedObject) {
-        if (selected.length === 0) {
-          this.setState(old => ({
-            ...old,
-            schema: undefined,
-            selectedObject: '',
-            selectedObjectData: undefined
-          }));
-          return;
-        }
+      const selection = newState.selected.value;
+      const selectedObjectNames = Object.keys(selection || {});
 
+      // Only show object properties if ONE object is selected and it's a shape
+      if (
+        selection === undefined ||
+        selectedObjectNames.length !== 1 ||
+        selection[selectedObjectNames[0]].type !== 'shape'
+      ) {
+        this.setState(old => ({
+          ...old,
+          schema: undefined,
+          selectedObject: '',
+          selectedObjectData: undefined
+        }));
+        return;
+      }
+
+      const selectedObject = selectedObjectNames[0];
+      if (selectedObject !== this.state.selectedObject) {
         const objectData = this.props.cpModel.jcadModel?.getAllObject();
         if (objectData) {
           let schema;
-          const selectedObj = itemFromName(selected, objectData);
+          const selectedObj = itemFromName(selectedObject, objectData);
           if (!selectedObj) {
             return;
           }
@@ -232,7 +240,7 @@ class ObjectPropertiesReact extends React.Component<IProps, IStates> {
           this.setState(old => ({
             ...old,
             selectedObjectData,
-            selectedObject: selected,
+            selectedObject,
             schema
           }));
         }

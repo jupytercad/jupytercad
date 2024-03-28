@@ -43,6 +43,8 @@
         "Part::MultiFuse",
         "Part::MultiCommon",
         "Part::Extrusion",
+        "Edge::Chamfer",
+        "Edge::Fillet",
         "Sketcher::SketchObject",
         "Post::Operator"
       ]

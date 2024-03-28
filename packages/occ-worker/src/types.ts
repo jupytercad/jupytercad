@@ -15,7 +15,9 @@ import {
   ITorus,
   IPostOperator,
   WorkerAction,
-  IWorkerMessageBase
+  IWorkerMessageBase,
+  IChamfer,
+  IFillet
 } from '@jupytercad/schema';
 
 export interface IDict<T = any> {
@@ -62,6 +64,8 @@ export type IAllOperatorFunc =
   | IOperatorFunc<IFuse>
   | IOperatorFunc<IIntersection>
   | IOperatorFunc<IExtrusion>
+  | IOperatorFunc<IChamfer>
+  | IOperatorFunc<IFillet>
   | IOperatorFunc<ISketchObject>
   | IOperatorFunc<IPostOperator>;
 
@@ -74,5 +78,7 @@ export type IOperatorArg = IAny &
   ICut &
   IFuse &
   IExtrusion &
+  IChamfer &
+  IFillet &
   ISketchObject &
   IPostOperator;

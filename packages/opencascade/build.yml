@@ -21,6 +21,9 @@ mainBuild:
     - symbol: BRepBuilderAPI_MakeVertex
     - symbol: BRepBuilderAPI_MakeWire
     - symbol: BRepBuilderAPI_ModifyShape
+    - symbol: BRepFilletAPI_LocalOperation
+    - symbol: BRepFilletAPI_MakeChamfer
+    - symbol: BRepFilletAPI_MakeFillet
     - symbol: BRepGProp
     - symbol: BRepMesh_DiscretRoot
     - symbol: BRepMesh_IncrementalMesh
@@ -33,6 +36,7 @@ mainBuild:
     - symbol: BRepPrimAPI_MakeSweep
     - symbol: BRepPrimAPI_MakeTorus
     - symbol: BRepTools
+    - symbol: ChFi3d_FilletShape
     - symbol: GC_MakeCircle
     - symbol: GC_MakeSegment
     - symbol: GC_Root
@@ -100,8 +104,8 @@ mainBuild:
   emccFlags:
     - "-flto"
     - "-fexceptions"
-    - "-sDISABLE_EXCEPTION_CATCHING=1"
     - "-O3"
+    - "-sDISABLE_EXCEPTION_CATCHING=1"
     - "-sEXPORT_ES6=1"
     - "-sUSE_ES6_IMPORT_META=0"
     - "-sEXPORTED_RUNTIME_METHODS=['FS']"

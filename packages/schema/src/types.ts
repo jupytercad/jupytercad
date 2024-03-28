@@ -1,5 +1,7 @@
 export * from './_interface/any';
 export * from './_interface/box';
+export * from './_interface/chamfer';
+export * from './_interface/fillet';
 export * from './_interface/cone';
 export * from './_interface/cut';
 export * from './_interface/cylinder';

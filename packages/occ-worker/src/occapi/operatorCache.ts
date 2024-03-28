@@ -21,7 +21,9 @@ const BOOLEAN_OPERATORS = [
   'Part::Cut',
   'Part::MultiFuse',
   'Part::Extrusion',
-  'Part::MultiCommon'
+  'Part::MultiCommon',
+  'Edge::Chamfer',
+  'Edge::Fillet'
 ] as const;
 
 const MISC_OPERATORS = [
@@ -62,7 +64,9 @@ export function expand_operator(
         expanded_args[name] = expandedArgs;
         break;
       }
-      case 'Part::Extrusion': {
+      case 'Part::Extrusion':
+      case 'Edge::Fillet':
+      case 'Edge::Chamfer': {
         const expandedArgs = JSON.parse(JSON.stringify(args));
         const { Base } = expandedArgs;
         const baseData = content.objects.filter(item => item.name === Base);
