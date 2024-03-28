@@ -6,9 +6,10 @@ import { JSONValue } from '@lumino/coreutils';
 import { ISignal, Signal } from '@lumino/signaling';
 import * as React from 'react';
 
-import { MainView } from './mainview';
+import { MainView } from './3dview';
 import { AxeHelper, CameraSettings, ExplodedView, ClipSettings } from './types';
 import { IJCadWorkerRegistry, IJupyterCadWidget } from '@jupytercad/schema';
+import { MainViewModel } from './3dview/mainviewmodel';
 
 export class JupyterCadWidget
   extends DocumentWidget<JupyterCadPanel, IJupyterCadModel>
@@ -45,9 +46,12 @@ export class JupyterCadPanel extends ReactWidget {
   }) {
     super();
     this.addClass('jp-jupytercad-panel');
-    this._jcadModel = options.model;
-    this._workerRegistry = options.workerRegistry;
     this._view = new ObservableMap<JSONValue>();
+    this._mainViewModel = new MainViewModel({
+      jcadModel: options.model,
+      workerRegistry: options.workerRegistry,
+      viewSetting: this._view
+    });
   }
 
   get viewChanged(): ISignal<
@@ -65,6 +69,7 @@ export class JupyterCadPanel extends ReactWidget {
       return;
     }
     Signal.clearData(this);
+    this._mainViewModel.dispose();
     super.dispose();
   }
 
@@ -105,16 +110,8 @@ export class JupyterCadPanel extends ReactWidget {
   }
 
   render(): JSX.Element {
-    return (
-      <MainView
-        view={this._view}
-        jcadModel={this._jcadModel}
-        workerRegistry={this._workerRegistry}
-      />
-    );
+    return <MainView viewModel={this._mainViewModel} />;
   }
-
+  private _mainViewModel: MainViewModel;
   private _view: ObservableMap<JSONValue>;
-  private _workerRegistry: IJCadWorkerRegistry;
-  private _jcadModel: IJupyterCadModel;
 }

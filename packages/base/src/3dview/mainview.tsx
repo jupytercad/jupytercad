@@ -1,70 +1,52 @@
+import * as Color from 'd3-color';
+import * as React from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
+
 import { MapChange } from '@jupyter/ydoc';
-import { IWorkerMessage } from '@jupytercad/occ-worker';
 import {
   IAnnotation,
   IDict,
   IDisplayShape,
-  IJcadObjectDocChange,
-  IJCadWorker,
-  IJCadWorkerRegistry,
   IJupyterCadClientState,
   IJupyterCadDoc,
   IJupyterCadModel,
-  IMainMessage,
-  IPostResult,
-  MainAction,
-  WorkerAction
+  IPostResult
 } from '@jupytercad/schema';
 import { IObservableMap, ObservableMap } from '@jupyterlab/observables';
 import { User } from '@jupyterlab/services';
 import { CommandRegistry } from '@lumino/commands';
 import { JSONValue } from '@lumino/coreutils';
 import { ContextMenu } from '@lumino/widgets';
-import * as Color from 'd3-color';
-import * as React from 'react';
-import * as THREE from 'three';
+
+import { FloatingAnnotation } from '../annotation/view';
+import { getCSSVariableColor, isLightTheme, throttle } from '../tools';
 import {
-  acceleratedRaycast,
-  computeBoundsTree,
-  disposeBoundsTree
-} from 'three-mesh-bvh';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
-import { v4 as uuid } from 'uuid';
-
-import { FloatingAnnotation } from './annotation/view';
-import { getCSSVariableColor, throttle } from './tools';
-import { AxeHelper, CameraSettings, ExplodedView, ClipSettings } from './types';
-
-// Apply the BVH extension
-THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-THREE.Mesh.prototype.raycast = acceleratedRaycast;
-
-const DEFAULT_MESH_COLOR_CSS = '--jp-inverse-layout-color4';
-const DEFAULT_EDGE_COLOR_CSS = '--jp-inverse-layout-color2';
-const SELECTED_MESH_COLOR_CSS = '--jp-brand-color0';
-
-const DEFAULT_MESH_COLOR = new THREE.Color(
-  getCSSVariableColor(DEFAULT_MESH_COLOR_CSS)
-);
-const DEFAULT_EDGE_COLOR = new THREE.Color(
-  getCSSVariableColor(DEFAULT_EDGE_COLOR_CSS)
-);
-const SELECTED_MESH_COLOR = new THREE.Color(
-  getCSSVariableColor(SELECTED_MESH_COLOR_CSS)
-);
-
-export type BasicMesh = THREE.Mesh<
-  THREE.BufferGeometry,
-  THREE.MeshBasicMaterial
->;
+  AxeHelper,
+  CameraSettings,
+  ClipSettings,
+  ExplodedView
+} from '../types';
+import {
+  BasicMesh,
+  buildShape,
+  computeExplodedState,
+  DEFAULT_EDGE_COLOR,
+  DEFAULT_EDGE_COLOR_CSS,
+  DEFAULT_MESH_COLOR,
+  DEFAULT_MESH_COLOR_CSS,
+  IPickedResult,
+  IPointer,
+  projectVector,
+  SELECTED_MESH_COLOR,
+  SELECTED_MESH_COLOR_CSS
+} from './helpers';
+import { MainViewModel } from './mainviewmodel';
 
 interface IProps {
-  view: ObservableMap<JSONValue>;
-  jcadModel: IJupyterCadModel;
-  workerRegistry: IJCadWorkerRegistry;
+  viewModel: MainViewModel;
 }
 
 interface IStates {
@@ -77,22 +59,6 @@ interface IStates {
   firstLoad: boolean;
 }
 
-/**
- * The interface for a 3D pointer
- */
-interface IPointer {
-  parent: BasicMesh;
-  readonly mesh: BasicMesh;
-}
-
-/**
- * The result of mesh picking, contains the picked mesh and the 3D position of the pointer.
- */
-interface IPickedResult {
-  mesh: BasicMesh;
-  position: THREE.Vector3;
-}
-
 export class MainView extends React.Component<IProps, IStates> {
   constructor(props: IProps) {
     super(props);
@@ -100,50 +66,33 @@ export class MainView extends React.Component<IProps, IStates> {
     this._geometry = new THREE.BufferGeometry();
     this._geometry.setDrawRange(0, 3 * 10000);
 
-    this.props.view.changed.connect(this._onViewChanged, this);
-
-    this._model = this.props.jcadModel;
-
+    this._mainViewModel = this.props.viewModel;
+    this._mainViewModel.viewSettingChanged.connect(this._onViewChanged, this);
+    this._model = this._mainViewModel.jcadModel;
     this._pointer = new THREE.Vector2();
     this._collaboratorPointers = {};
     this._model.themeChanged.connect(this._handleThemeChange, this);
 
-    this._model.sharedObjectsChanged.connect(
-      this._onSharedObjectsChanged,
-      this
-    );
-    this._model.sharedOptionsChanged.connect(
+    this._mainViewModel.jcadModel.sharedOptionsChanged.connect(
       this._onSharedOptionsChanged,
       this
     );
-    this._model.clientStateChanged.connect(
+    this._mainViewModel.jcadModel.clientStateChanged.connect(
       this._onClientSharedStateChanged,
       this
     );
-    this._model.sharedMetadataChanged.connect(
+    this._mainViewModel.jcadModel.sharedMetadataChanged.connect(
       this._onSharedMetadataChanged,
       this
     );
-
+    this._mainViewModel.renderSignal.connect(this._requestRender, this);
     if (this._raycaster.params.Line) {
       this._raycaster.params.Line.threshold = 0.1;
     }
 
-    this._worker = props.workerRegistry.getDefaultWorker();
-    const id = this._worker.register({
-      messageHandler: this.messageHandler.bind(this)
-    });
-    props.workerRegistry.getAllWorkers().forEach(wk => {
-      const id = wk.register({
-        messageHandler: this.postProcessWorkerHandler.bind(this)
-      });
-      this._postWorkerId.set(id, wk);
-    });
-    const lightTheme =
-      document.body.getAttribute('data-jp-theme-light') === 'true';
     this.state = {
-      id,
-      lightTheme,
+      id: this._mainViewModel.id,
+      lightTheme: isLightTheme(),
       loading: true,
       annotations: {},
       firstLoad: true
@@ -154,6 +103,8 @@ export class MainView extends React.Component<IProps, IStates> {
     window.addEventListener('resize', this._handleWindowResize);
     this.generateScene();
     this.addContextMenu();
+    this._mainViewModel.initWorker();
+    this._mainViewModel.initSignal();
   }
 
   componentDidUpdate(oldProps: IProps, oldState: IStates): void {
@@ -163,7 +114,10 @@ export class MainView extends React.Component<IProps, IStates> {
   componentWillUnmount(): void {
     window.cancelAnimationFrame(this._requestID);
     window.removeEventListener('resize', this._handleWindowResize);
-    this.props.view.changed.disconnect(this._onViewChanged, this);
+    this._mainViewModel.viewSettingChanged.disconnect(
+      this._onViewChanged,
+      this
+    );
     this._controls.dispose();
 
     this._model.themeChanged.disconnect(this._handleThemeChange, this);
@@ -171,18 +125,17 @@ export class MainView extends React.Component<IProps, IStates> {
       this._onSharedOptionsChanged,
       this
     );
-    this._model.sharedObjectsChanged.disconnect(
-      this._onSharedObjectsChanged,
-      this
-    );
-    this._model.clientStateChanged.disconnect(
+
+    this._mainViewModel.jcadModel.clientStateChanged.disconnect(
       this._onClientSharedStateChanged,
       this
     );
-    this._model.sharedMetadataChanged.disconnect(
+    this._mainViewModel.jcadModel.sharedMetadataChanged.disconnect(
       this._onSharedMetadataChanged,
       this
     );
+
+    this._mainViewModel.renderSignal.disconnect(this._requestRender, this);
   }
 
   addContextMenu = (): void => {
@@ -199,16 +152,18 @@ export class MainView extends React.Component<IProps, IStates> {
 
         // If in exploded view, we scale down to the initial position (to before exploding the view)
         if (this._explodedView.enabled) {
-          const explodedState = this._computeExplodedState(
-            this._pointer3D.mesh
-          );
+          const explodedState = computeExplodedState({
+            mesh: this._pointer3D.mesh,
+            boundingGroup: this._boundingGroup,
+            factor: this._explodedView.factor
+          });
 
           position.add(
             explodedState.vector.multiplyScalar(-explodedState.distance)
           );
         }
 
-        this._model.annotationModel?.addAnnotation(uuid(), {
+        this._mainViewModel.addAnnotation({
           position: [position.x, position.y, position.z],
           label: 'New annotation',
           contents: [],
@@ -381,7 +336,146 @@ export class MainView extends React.Component<IProps, IStates> {
     }
   };
 
-  _pick(): IPickedResult | null {
+  startAnimationLoop = (): void => {
+    this._requestID = window.requestAnimationFrame(this.startAnimationLoop);
+
+    if (this._clippingPlaneMesh !== null) {
+      this._clippingPlane.coplanarPoint(this._clippingPlaneMesh.position);
+      this._clippingPlaneMesh.lookAt(
+        this._clippingPlaneMesh.position.x - this._clippingPlane.normal.x,
+        this._clippingPlaneMesh.position.y - this._clippingPlane.normal.y,
+        this._clippingPlaneMesh.position.z - this._clippingPlane.normal.z
+      );
+    }
+
+    this._controls.update();
+    this._renderer.setRenderTarget(null);
+    this._renderer.clearDepth();
+    this._renderer.render(this._scene, this._camera);
+  };
+
+  resizeCanvasToDisplaySize = (): void => {
+    if (this.divRef.current !== null) {
+      this._renderer.setSize(
+        this.divRef.current.clientWidth,
+        this.divRef.current.clientHeight,
+        false
+      );
+      if (this._camera.type === 'PerspectiveCamera') {
+        this._camera.aspect =
+          this.divRef.current.clientWidth / this.divRef.current.clientHeight;
+      } else {
+        this._camera.left = this.divRef.current.clientWidth / -2;
+        this._camera.right = this.divRef.current.clientWidth / 2;
+        this._camera.top = this.divRef.current.clientHeight / 2;
+        this._camera.bottom = this.divRef.current.clientHeight / -2;
+      }
+      this._camera.updateProjectionMatrix();
+    }
+  };
+
+  generateScene = (): void => {
+    this.sceneSetup();
+    this.startAnimationLoop();
+    this.resizeCanvasToDisplaySize();
+  };
+
+  private _updateAnnotation() {
+    Object.keys(this.state.annotations).forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        const annotation = this._model.annotationModel?.getAnnotation(key);
+        let screenPosition = new THREE.Vector2();
+
+        if (annotation) {
+          const parent = this._meshGroup?.getObjectByName(
+            annotation.parent
+          ) as BasicMesh;
+          const position = new THREE.Vector3(
+            annotation.position[0],
+            annotation.position[1],
+            annotation.position[2]
+          );
+
+          // If in exploded view, we explode the annotation position as well
+          if (this._explodedView.enabled && parent) {
+            const explodedState = computeExplodedState({
+              mesh: parent,
+              boundingGroup: this._boundingGroup,
+              factor: this._explodedView.factor
+            });
+            const explodeVector = explodedState.vector.multiplyScalar(
+              explodedState.distance
+            );
+
+            position.add(explodeVector);
+          }
+          const canvas = this._renderer.domElement;
+          screenPosition = projectVector({
+            vector: position,
+            camera: this._camera,
+            width: canvas.width,
+            height: canvas.height
+          });
+        }
+
+        el.style.left = `${Math.round(screenPosition.x)}px`;
+        el.style.top = `${Math.round(screenPosition.y)}px`;
+      }
+    });
+  }
+
+  private _onPointerMove(e: MouseEvent) {
+    const rect = this._renderer.domElement.getBoundingClientRect();
+
+    this._pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this._pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    const picked = this._pick();
+
+    // Update our 3D pointer locally so there is no visual latency in the local pointer movement
+    if (!this._pointer3D && this._model.localState && picked) {
+      this._pointer3D = {
+        parent: picked.mesh,
+        mesh: this._createPointer(this._model.localState.user)
+      };
+      this._scene.add(this._pointer3D.mesh);
+    }
+
+    if (picked) {
+      if (!this._pointer3D) {
+        this._syncPointer(undefined, undefined);
+        return;
+      }
+
+      this._pointer3D.mesh.visible = true;
+      this._pointer3D.mesh.position.copy(picked.position);
+      this._pointer3D.parent = picked.mesh;
+
+      // If in exploded view, we scale down to the initial position (to before exploding the view)
+      if (this._explodedView.enabled) {
+        const explodedState = computeExplodedState({
+          mesh: this._pointer3D.parent,
+          boundingGroup: this._boundingGroup,
+          factor: this._explodedView.factor
+        });
+
+        picked.position.add(
+          explodedState.vector.multiplyScalar(-explodedState.distance)
+        );
+      }
+
+      // If clipping is enabled and picked position is hidden
+      this._syncPointer(picked.position, picked.mesh.name);
+    } else {
+      if (this._pointer3D) {
+        this._pointer3D.mesh.visible = false;
+      }
+      this._syncPointer(undefined, undefined);
+    }
+  }
+
+  private _pick(): IPickedResult | null {
     if (this._meshGroup === null || !this._meshGroup.children) {
       return null;
     }
@@ -420,205 +514,6 @@ export class MainView extends React.Component<IProps, IStates> {
     }
 
     return null;
-  }
-
-  startAnimationLoop = (): void => {
-    this._requestID = window.requestAnimationFrame(this.startAnimationLoop);
-
-    if (this._clippingPlaneMesh !== null) {
-      this._clippingPlane.coplanarPoint(this._clippingPlaneMesh.position);
-      this._clippingPlaneMesh.lookAt(
-        this._clippingPlaneMesh.position.x - this._clippingPlane.normal.x,
-        this._clippingPlaneMesh.position.y - this._clippingPlane.normal.y,
-        this._clippingPlaneMesh.position.z - this._clippingPlane.normal.z
-      );
-    }
-
-    this._controls.update();
-
-    this._renderer.setRenderTarget(null);
-
-    this._renderer.clearDepth();
-
-    this._renderer.render(this._scene, this._camera);
-  };
-
-  resizeCanvasToDisplaySize = (): void => {
-    if (this.divRef.current !== null) {
-      this._renderer.setSize(
-        this.divRef.current.clientWidth,
-        this.divRef.current.clientHeight,
-        false
-      );
-      if (this._camera.type === 'PerspectiveCamera') {
-        this._camera.aspect =
-          this.divRef.current.clientWidth / this.divRef.current.clientHeight;
-      } else {
-        this._camera.left = this.divRef.current.clientWidth / -2;
-        this._camera.right = this.divRef.current.clientWidth / 2;
-        this._camera.top = this.divRef.current.clientHeight / 2;
-        this._camera.bottom = this.divRef.current.clientHeight / -2;
-      }
-      this._camera.updateProjectionMatrix();
-    }
-  };
-
-  generateScene = (): void => {
-    this.sceneSetup();
-    this.startAnimationLoop();
-    this.resizeCanvasToDisplaySize();
-  };
-
-  messageHandler = (msg: IMainMessage): void => {
-    switch (msg.action) {
-      case MainAction.DISPLAY_SHAPE: {
-        const { result, postResult } = msg.payload;
-        this._saveMeta(result);
-        this._shapeToMesh(result);
-        if (Object.keys(result).length > 0) {
-          if (this._firstRender) {
-            const outputs = this._model.sharedModel.outputs;
-            Object.entries(outputs).forEach(([objName, postResult]) => {
-              this._objToMesh(objName, postResult as any);
-            });
-            this._firstRender = false;
-          } else {
-            this._postWorkerId.forEach((wk, id) => {
-              wk.postMessage({
-                id,
-                action: WorkerAction.POSTPROCESS,
-                payload: postResult
-              });
-            });
-          }
-        }
-
-        break;
-      }
-      case MainAction.INITIALIZED: {
-        if (!this._model) {
-          return;
-        }
-        const content = this._model.getContent();
-
-        this._postMessage({
-          action: WorkerAction.LOAD_FILE,
-          payload: {
-            content
-          }
-        });
-      }
-    }
-  };
-
-  postProcessWorkerHandler = (msg: IMainMessage): void => {
-    switch (msg.action) {
-      case MainAction.DISPLAY_POST: {
-        msg.payload.forEach(element => {
-          const { jcObject, postResult } = element;
-          this._model.sharedModel.setOutput(jcObject.name, postResult);
-          this._objToMesh(jcObject.name, postResult);
-        });
-
-        break;
-      }
-    }
-  };
-
-  private _projectVector = (vector: THREE.Vector3): THREE.Vector2 => {
-    const copy = new THREE.Vector3().copy(vector);
-    const canvas = this._renderer.domElement;
-
-    copy.project(this._camera);
-
-    return new THREE.Vector2(
-      (0.5 + copy.x / 2) * canvas.width,
-      (0.5 - copy.y / 2) * canvas.height
-    );
-  };
-
-  private _updateAnnotation() {
-    Object.keys(this.state.annotations).forEach(key => {
-      const el = document.getElementById(key);
-      if (el) {
-        const annotation = this._model.annotationModel?.getAnnotation(key);
-        let screenPosition = new THREE.Vector2();
-
-        if (annotation) {
-          const parent = this._meshGroup?.getObjectByName(
-            annotation.parent
-          ) as BasicMesh;
-          const position = new THREE.Vector3(
-            annotation.position[0],
-            annotation.position[1],
-            annotation.position[2]
-          );
-
-          // If in exploded view, we explode the annotation position as well
-          if (this._explodedView.enabled && parent) {
-            const explodedState = this._computeExplodedState(parent);
-            const explodeVector = explodedState.vector.multiplyScalar(
-              explodedState.distance
-            );
-
-            position.add(explodeVector);
-          }
-
-          screenPosition = this._projectVector(position);
-        }
-
-        el.style.left = `${Math.round(screenPosition.x)}px`;
-        el.style.top = `${Math.round(screenPosition.y)}px`;
-      }
-    });
-  }
-
-  private _onPointerMove(e: MouseEvent) {
-    const rect = this._renderer.domElement.getBoundingClientRect();
-
-    this._pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this._pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    const picked = this._pick();
-
-    // Update our 3D pointer locally so there is no visual latency in the local pointer movement
-    if (!this._pointer3D && this._model.localState && picked) {
-      this._pointer3D = {
-        parent: picked.mesh,
-        mesh: this._createPointer(this._model.localState.user)
-      };
-      this._scene.add(this._pointer3D.mesh);
-    }
-
-    if (picked) {
-      if (!this._pointer3D) {
-        this._syncPointer(undefined, undefined);
-        return;
-      }
-
-      this._pointer3D.mesh.visible = true;
-      this._pointer3D.mesh.position.copy(picked.position);
-      this._pointer3D.parent = picked.mesh;
-
-      // If in exploded view, we scale down to the initial position (to before exploding the view)
-      if (this._explodedView.enabled) {
-        const explodedState = this._computeExplodedState(
-          this._pointer3D.parent
-        );
-
-        picked.position.add(
-          explodedState.vector.multiplyScalar(-explodedState.distance)
-        );
-      }
-
-      // If clipping is enabled and picked position is hidden
-      this._syncPointer(picked.position, picked.mesh.name);
-    } else {
-      if (this._pointer3D) {
-        this._pointer3D.mesh.visible = false;
-      }
-      this._syncPointer(undefined, undefined);
-    }
   }
 
   private _onClick(e: MouseEvent) {
@@ -672,15 +567,6 @@ export class MainView extends React.Component<IProps, IStates> {
     }
   }
 
-  private _saveMeta = (payload: IDisplayShape['payload']['result']) => {
-    if (!this._model) {
-      return;
-    }
-    Object.entries(payload).forEach(([objName, data]) => {
-      this._model.sharedModel.setShapeMeta(objName, data.meta);
-    });
-  };
-
   private _shapeToMesh = (payload: IDisplayShape['payload']['result']) => {
     if (this._meshGroup !== null) {
       this._scene.remove(this._meshGroup);
@@ -696,140 +582,27 @@ export class MainView extends React.Component<IProps, IStates> {
     this._boundingGroup = new THREE.Box3();
 
     this._meshGroup = new THREE.Group();
+
     Object.entries(payload).forEach(([objName, data]) => {
-      const { faceList, edgeList, jcObject } = data;
-
-      const vertices: Array<any> = [];
-      const normals: Array<any> = [];
-      const triangles: Array<any> = [];
-
-      let vInd = 0;
-      if (faceList.length === 0 && edgeList.length === 0) {
-        return;
-      }
-      faceList.forEach(face => {
-        // Copy Vertices into three.js Vector3 List
-        vertices.push(...face.vertexCoord);
-        normals.push(...face.normalCoord);
-
-        // Sort Triangles into a three.js Face List
-        for (let i = 0; i < face.triIndexes.length; i += 3) {
-          triangles.push(
-            face.triIndexes[i + 0] + vInd,
-            face.triIndexes[i + 1] + vInd,
-            face.triIndexes[i + 2] + vInd
-          );
-        }
-
-        vInd += face.vertexCoord.length / 3;
-      });
-
-      let color = DEFAULT_MESH_COLOR;
-      let visible = jcObject.visible;
-      if (guidata && guidata[objName]) {
-        const objdata = guidata[objName];
-
-        if (Object.prototype.hasOwnProperty.call(objdata, 'color')) {
-          const rgba = objdata['color'] as number[];
-          color = new THREE.Color(rgba[0], rgba[1], rgba[2]);
-        }
-
-        if (Object.prototype.hasOwnProperty.call(objdata, 'visibility')) {
-          visible = guidata[objName]['visibility'];
-        }
-      }
-
-      // Compile the connected vertices and faces into a model
-      // And add to the scene
-      // We need one material per-mesh because we will set the uniform color independently later
-      // it's too bad Three.js does not easily allow setting uniforms independently per-mesh
-      const material = new THREE.MeshPhongMaterial({
-        color,
-        side: THREE.DoubleSide,
-        wireframe: false,
-        flatShading: false,
+      const selected = selectedNames.includes(objName);
+      const output = buildShape({
+        objName,
+        data,
         clippingPlanes: this._clippingPlanes,
-        shininess: 0
+        selected,
+        guidata
       });
 
-      const geometry = new THREE.BufferGeometry();
-      geometry.setIndex(triangles);
-      geometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(vertices, 3)
-      );
-      geometry.setAttribute(
-        'normal',
-        new THREE.Float32BufferAttribute(normals, 3)
-      );
-      geometry.computeBoundingBox();
-      if (vertices.length > 0) {
-        geometry.computeBoundsTree();
+      if (output) {
+        const { meshGroup, mainMesh } = output;
+        if (meshGroup.visible) {
+          this._boundingGroup.expandByObject(mainMesh);
+        }
+        if (selected) {
+          this._selectedMeshes.push(mainMesh);
+        }
+        this._meshGroup?.add(meshGroup);
       }
-
-      const meshGroup = new THREE.Group();
-      meshGroup.name = objName;
-      meshGroup.visible = visible;
-
-      const baseMat = new THREE.MeshBasicMaterial();
-      baseMat.depthWrite = false;
-      baseMat.depthTest = false;
-      baseMat.colorWrite = false;
-      baseMat.stencilWrite = true;
-      baseMat.stencilFunc = THREE.AlwaysStencilFunc;
-
-      // back faces
-      const mat0 = baseMat.clone();
-      mat0.side = THREE.BackSide;
-      mat0.clippingPlanes = this._clippingPlanes;
-      mat0.stencilFail = THREE.IncrementWrapStencilOp;
-      mat0.stencilZFail = THREE.IncrementWrapStencilOp;
-      mat0.stencilZPass = THREE.IncrementWrapStencilOp;
-      const backFaces = new THREE.Mesh(geometry, mat0);
-      meshGroup.add(backFaces);
-
-      // front faces
-      const mat1 = baseMat.clone();
-      mat1.side = THREE.FrontSide;
-      mat1.clippingPlanes = this._clippingPlanes;
-      mat1.stencilFail = THREE.DecrementWrapStencilOp;
-      mat1.stencilZFail = THREE.DecrementWrapStencilOp;
-      mat1.stencilZPass = THREE.DecrementWrapStencilOp;
-      const frontFaces = new THREE.Mesh(geometry, mat1);
-      meshGroup.add(frontFaces);
-
-      const mainMesh = new THREE.Mesh(geometry, material);
-      mainMesh.name = 'main';
-
-      if (visible) {
-        this._boundingGroup.expandByObject(mainMesh);
-      }
-
-      if (selectedNames.includes(objName)) {
-        this._selectedMeshes.push(mainMesh);
-        mainMesh.material.color = SELECTED_MESH_COLOR;
-      }
-
-      const edgeMaterial = new THREE.LineBasicMaterial({
-        linewidth: 5,
-        color: DEFAULT_EDGE_COLOR,
-        clippingPlanes: this._clippingPlanes
-      });
-      edgeList.forEach(edge => {
-        const edgeVertices = new THREE.Float32BufferAttribute(
-          edge.vertexCoord,
-          3
-        );
-        const edgeGeometry = new THREE.BufferGeometry();
-        edgeGeometry.setAttribute('position', edgeVertices);
-        const edgesMesh = new THREE.Line(edgeGeometry, edgeMaterial);
-        edgesMesh.name = 'edge';
-
-        mainMesh.add(edgesMesh);
-      });
-      meshGroup.add(mainMesh);
-
-      this._meshGroup?.add(meshGroup);
     });
 
     if (guidata) {
@@ -856,7 +629,7 @@ export class MainView extends React.Component<IProps, IStates> {
       side: THREE.DoubleSide
     });
     this._clippingPlaneMesh = new THREE.Mesh(planeGeom, planeMat);
-    this._clippingPlaneMesh.onAfterRender = function (renderer) {
+    this._clippingPlaneMesh.onAfterRender = renderer => {
       renderer.clearStencil();
     };
 
@@ -898,6 +671,7 @@ export class MainView extends React.Component<IProps, IStates> {
       }
     }
   }
+
   private async _objToMesh(
     name: string,
     postResult: IPostResult
@@ -942,13 +716,20 @@ export class MainView extends React.Component<IProps, IStates> {
     this._updateRefLength(true);
   }
 
-  private _postMessage = (msg: Omit<IWorkerMessage, 'id'>) => {
-    if (this._worker) {
-      const newMsg = { ...msg, id: this.state.id };
-      this._worker.postMessage(newMsg);
+  private _requestRender(
+    sender: MainViewModel,
+    renderData: { shapes: any; postShapes: any }
+  ) {
+    const { shapes, postShapes } = renderData;
+    if (shapes !== null && shapes !== undefined) {
+      this._shapeToMesh(renderData.shapes);
     }
-  };
-
+    if (postShapes !== null && postShapes !== undefined) {
+      Object.entries(postShapes).forEach(([objName, postResult]) => {
+        this._objToMesh(objName, postResult as any);
+      });
+    }
+  }
   private _updatePointers(refLength): void {
     this._pointerGeometry = new THREE.SphereGeometry(refLength / 10, 32, 32);
 
@@ -1131,7 +912,11 @@ export class MainView extends React.Component<IProps, IStates> {
 
         // If we are in exploded view, we display the collaborator cursor at the exploded position
         if (this._explodedView.enabled) {
-          const explodedState = this._computeExplodedState(parent);
+          const explodedState = computeExplodedState({
+            mesh: parent,
+            boundingGroup: this._boundingGroup,
+            factor: this._explodedView.factor
+          });
           const explodeVector = explodedState.vector.multiplyScalar(
             explodedState.distance
           );
@@ -1158,21 +943,6 @@ export class MainView extends React.Component<IProps, IStates> {
     });
   };
 
-  private async _onSharedObjectsChanged(
-    _: IJupyterCadDoc,
-    change: IJcadObjectDocChange
-  ): Promise<void> {
-    if (change.objectChange) {
-      await this._worker.ready;
-      this._postMessage({
-        action: WorkerAction.LOAD_FILE,
-        payload: {
-          content: this._model.getContent()
-        }
-      });
-    }
-  }
-
   private _onSharedOptionsChanged(
     sender: IJupyterCadDoc,
     change: MapChange
@@ -1181,10 +951,9 @@ export class MainView extends React.Component<IProps, IStates> {
 
     if (guidata) {
       for (const objName in guidata) {
-        const obj = this._meshGroup
-          ?.getObjectByName(objName)
-          ?.getObjectByName('main') as BasicMesh | undefined;
-        if (!obj) {
+        const objGroup = this._meshGroup?.getObjectByName(objName);
+        const obj = objGroup?.getObjectByName('main') as BasicMesh | undefined;
+        if (!objGroup || !obj) {
           continue;
         }
         if (
@@ -1193,8 +962,8 @@ export class MainView extends React.Component<IProps, IStates> {
           const explodedLineHelper =
             this._explodedViewLinesHelperGroup?.getObjectByName(objName);
           const objGuiData = guidata[objName];
-
           if (objGuiData) {
+            objGroup.visible = objGuiData['visibility'];
             obj.visible = objGuiData['visibility'];
 
             if (explodedLineHelper) {
@@ -1269,9 +1038,11 @@ export class MainView extends React.Component<IProps, IStates> {
       this._explodedViewLinesHelperGroup = new THREE.Group();
 
       for (const group of this._meshGroup?.children as THREE.Group[]) {
-        const explodedState = this._computeExplodedState(
-          group.getObjectByName('main') as BasicMesh
-        );
+        const explodedState = computeExplodedState({
+          mesh: group.getObjectByName('main') as BasicMesh,
+          boundingGroup: this._boundingGroup,
+          factor: this._explodedView.factor
+        });
 
         group.position.set(0, 0, 0);
         group.translateOnAxis(explodedState.vector, explodedState.distance);
@@ -1346,39 +1117,8 @@ export class MainView extends React.Component<IProps, IStates> {
     }
   }
 
-  private _computeExplodedState(mesh: BasicMesh) {
-    const center = new THREE.Vector3();
-    this._boundingGroup.getCenter(center);
-
-    const oldGeometryCenter = new THREE.Vector3();
-    mesh.geometry.boundingBox?.getCenter(oldGeometryCenter);
-
-    const centerToMesh = new THREE.Vector3(
-      oldGeometryCenter.x - center.x,
-      oldGeometryCenter.y - center.y,
-      oldGeometryCenter.z - center.z
-    );
-    const distance = centerToMesh.length() * this._explodedView.factor;
-
-    centerToMesh.normalize();
-
-    const newGeometryCenter = new THREE.Vector3(
-      oldGeometryCenter.x + distance * centerToMesh.x,
-      oldGeometryCenter.y + distance * centerToMesh.y,
-      oldGeometryCenter.z + distance * centerToMesh.z
-    );
-
-    return {
-      oldGeometryCenter,
-      newGeometryCenter,
-      vector: centerToMesh,
-      distance
-    };
-  }
-
   private _handleThemeChange = (): void => {
-    const lightTheme =
-      document.body.getAttribute('data-jp-theme-light') === 'true';
+    const lightTheme = isLightTheme();
 
     DEFAULT_MESH_COLOR.set(getCSSVariableColor(DEFAULT_MESH_COLOR_CSS));
     DEFAULT_EDGE_COLOR.set(getCSSVariableColor(DEFAULT_EDGE_COLOR_CSS));
@@ -1436,15 +1176,24 @@ export class MainView extends React.Component<IProps, IStates> {
 
           // If in exploded view, we explode the annotation position as well
           if (this._explodedView.enabled && parent) {
-            const explodedState = this._computeExplodedState(parent);
+            const explodedState = computeExplodedState({
+              mesh: parent,
+              boundingGroup: this._boundingGroup,
+              factor: this._explodedView.factor
+            });
             const explodeVector = explodedState.vector.multiplyScalar(
               explodedState.distance
             );
 
             position.add(explodeVector);
           }
-
-          const screenPosition = this._projectVector(position);
+          const canvas = this._renderer.domElement;
+          const screenPosition = projectVector({
+            vector: position,
+            camera: this._camera,
+            width: canvas.width,
+            height: canvas.height
+          });
 
           return (
             <div
@@ -1480,8 +1229,7 @@ export class MainView extends React.Component<IProps, IStates> {
   private divRef = React.createRef<HTMLDivElement>(); // Reference of render div
 
   private _model: IJupyterCadModel;
-  private _worker: IJCadWorker;
-
+  private _mainViewModel: MainViewModel;
   private _pointer: THREE.Vector2;
   private _syncPointer: (
     position: THREE.Vector3 | undefined,
@@ -1518,6 +1266,4 @@ export class MainView extends React.Component<IProps, IStates> {
   private _collaboratorPointers: IDict<IPointer>;
   private _pointerGeometry: THREE.SphereGeometry;
   private _contextMenu: ContextMenu;
-  private _postWorkerId: Map<string, IJCadWorker> = new Map();
-  private _firstRender = true;
 }
