@@ -198,7 +198,7 @@ jobs:
 
   build-lite:
     name: Build JupyterLite
-    needs: integration-tests
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -234,7 +234,7 @@ jobs:
         run: |
           set -eux
           mkdir -p content && cp ../examples/test.jcad ./content
-          cp ./jupytercad_lab/dist/jupytercad*.whl jupytercad_lab.whl
+          cp ../jupytercad_lab/dist/jupytercad*.whl jupytercad_lab.whl
           jupyter lite build --contents content --output-dir dist
 
       - name: Upload artifact
