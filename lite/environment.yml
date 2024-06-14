@@ -4,3 +4,9 @@ channels:
   - conda-forge
 dependencies:
   - xeus-python
+  - pydantic
+  - ypywidgets
+  - yjs-widgets
+  - comm
+  - pip:
+    - ../python/jupytercad_lab

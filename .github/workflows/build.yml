@@ -213,6 +213,8 @@ jobs:
           create-args: >-
             python=3.10
             pip
+            datamodel-code-generator
+            jupyterlab
             jupyterlite-core>=0.2.0,<0.3.0
             jupyterlite-xeus>=0.1.2,<0.2
 
@@ -220,6 +222,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: extension-artifacts
+
+      - name: Build schemas
+        run: |
+          jlpm install
+          jlpm run build:schema:py
+        working-directory: packages/schema
 
       - name: Install the extension
         shell: bash -l {0}
