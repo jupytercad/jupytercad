@@ -234,7 +234,7 @@ jobs:
         run: |
           set -eux
           mkdir -p content && cp ../examples/test.jcad ./content
-          cp ../jupytercad_lab/dist/jupytercad*.whl jupytercad_lab.whl
+          cp ../jupytercad_lab/dist/jupytercad*.whl jupytercad_lab-x.x.x-py3-none-any.whl
           jupyter lite build --contents content --output-dir dist
 
       - name: Upload artifact
