@@ -223,12 +223,6 @@ jobs:
         with:
           name: extension-artifacts
 
-      - name: Build schemas
-        run: |
-          jlpm install
-          jlpm run build:schema:py
-        working-directory: packages/schema
-
       - name: Install the extension
         shell: bash -l {0}
         run: |
