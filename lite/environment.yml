@@ -9,4 +9,4 @@ dependencies:
   - yjs-widgets
   - comm
   - pip:
-    - ../python/jupytercad_lab
+      - ../python/jupytercad_lab
