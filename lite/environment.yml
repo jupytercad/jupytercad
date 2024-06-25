@@ -4,7 +4,7 @@ channels:
   - conda-forge
 dependencies:
   - xeus-python
-  - pydantic=2.4.2
+  - pydantic=2.7.4
   - ypywidgets
   - yjs-widgets
   - comm
