@@ -3,8 +3,8 @@ channels:
   - https://repo.mamba.pm/emscripten-forge
   - conda-forge
 dependencies:
-  - xeus-python=0.16
-  - pydantic
+  - xeus-python
+  - pydantic=2.4.2
   - ypywidgets
   - yjs-widgets
   - comm
