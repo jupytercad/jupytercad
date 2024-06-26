@@ -51,11 +51,54 @@ export class OccParser {
         jcObject,
         faceList,
         edgeList: [...edgeList, ...wireList],
+        isSolid: this._isSolid(occShape),
         meta: metadata
       };
     });
 
     return threejsData;
+  }
+
+  private _isSolid(shape: OCC.TopoDS_Shape) {
+    console.log('try checking is solid');
+    if (
+      shape.ShapeType() == this._occ.TopAbs_ShapeEnum.TopAbs_SOLID ||
+      shape.ShapeType() == this._occ.TopAbs_ShapeEnum.TopAbs_SHELL
+    ) {
+      console.log('1');
+      try {
+        const classifier = new this._occ.BRepClass3d_SolidClassifier();
+        console.log('2');
+        classifier.Load(shape);
+
+        console.log('3');
+        // Define a point (doesn't need to be specific, as we only care if it's closed)
+        const point = new this._occ.gp_Pnt();
+        console.log('4');
+        classifier.Perform(point, 0);
+
+        console.log('5');
+        // Check if the point is inside, on the boundary, or outside the solid
+        if (
+          classifier.State() == this._occ.TopAbs_State.TopAbs_IN ||
+          classifier.State() == this._occ.TopAbs_State.TopAbs_ON
+        ) {
+          console.log('6');
+          return true; // The solid is closed
+        }
+      } catch (e) {
+        if (typeof e === 'number') {
+          const exceptionData = this._occ.OCJS.getStandard_FailureData(e);
+          console.log(
+            `That didn't work because: ${exceptionData.GetMessageString()}`
+          );
+        } else {
+          console.log('Unkown error');
+        }
+      }
+    }
+    console.log('61');
+    return false;
   }
 
   private _shouldComputeEdge(obj: IJCadObject): boolean {
